@@ -31,9 +31,9 @@ else:
 archives=[runtime/'lib/libphobos2-ldc.a',runtime/'lib/libdruntime-ldc.a']
 if any(not q.is_file() or q.stat().st_size==0 for q in archives):raise SystemExit('DEMBREE_WEB_RUNTIME_POPULATION')
 run(['python3',ROOT/'tools/export_web_archives.py',a.build,dest/'archives'])
-run([ldc,'-c','-O2','-release','-mtriple=wasm32-unknown-emscripten','-mattr=+atomics,+bulk-memory,+simd128','-d-version=EmbreeTestFaults','-I'+str(ROOT/'source'),ROOT/'source/embree/c.d',ROOT/'source/embree/ray_accel.d',ROOT/'examples/web_proof.d','-of='+str(dest/'proof.o')])
+run([ldc,'-c','-O2','-release','-mtriple=wasm32-unknown-emscripten','-mattr=+atomics,+bulk-memory,+simd128','-d-version=EmbreeTestFaults','-d-version=EmbreeProofEndpointTests','-I'+str(ROOT/'source'),'-I'+str(ROOT/'tests/source'),ROOT/'source/embree/c.d',ROOT/'source/embree/ray_accel.d',ROOT/'tests/source/embree/tests/closed_intervals_test.d',ROOT/'examples/web_proof.d','-of='+str(dest/'proof.o')])
 run(['em++',dest/'proof.o','-o',dest/'proof.js','-pthread','-msimd128','-fexceptions','-sDISABLE_EXCEPTION_CATCHING=0','-sPTHREAD_POOL_SIZE=2','-sEXIT_RUNTIME=1','-sENVIRONMENT=node,web','-sSTACK_SIZE=1048576','@'+str(dest/'archives/link.rsp'),*archives])
 run(['node',dest/'proof.js'])
 _,runtime_inputs=fingerprint()
-receipt={'scope':'actual-D-threaded-runtime','commands':commands,'runtime_inputs':runtime_inputs,'runtime_archives':{str(q):sha(q) for q in archives},'inputs':{str(q):sha(q) for q in [ROOT/'source/embree/c.d',ROOT/'source/embree/ray_accel.d',ROOT/'examples/web_proof.d',a.build/'compile_commands.json',dest/'archives/manifest.json']},'artifacts':{q.name:sha(q) for q in dest.iterdir() if q.is_file() and q.suffix in ['.o','.js','.wasm']}}
+receipt={'scope':'actual-D-threaded-runtime','commands':commands,'runtime_inputs':runtime_inputs,'runtime_archives':{str(q):sha(q) for q in archives},'inputs':{str(q):sha(q) for q in [ROOT/'source/embree/c.d',ROOT/'source/embree/ray_accel.d',ROOT/'tests/source/embree/tests/closed_intervals_test.d',ROOT/'examples/web_proof.d',a.build/'compile_commands.json',dest/'archives/manifest.json']},'artifacts':{q.name:sha(q) for q in dest.iterdir() if q.is_file() and q.suffix in ['.o','.js','.wasm']}}
 (dest/'proof-receipt.json').write_text(json.dumps(receipt,indent=2)+'\n');print('DEMBREE_D_WEB_PROOF=PASS')

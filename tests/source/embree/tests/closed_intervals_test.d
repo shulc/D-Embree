@@ -2,7 +2,7 @@ module embree.tests.closed_intervals_test;
 import embree.ray_accel;
 import core.stdc.string : memcpy;
 private float unpack(uint u) nothrow @nogc { float f; memcpy(&f,&u,4); return f; }
-unittest {
+void runEndpointCells() {
  uint population;
  {
  uint[9] words=[0u,0u,0u,3201315456u,3200290048u,1052294336u,1040617472u,1002504192u,3209079456u];
@@ -646,3 +646,5 @@ unittest {
  }
  assert(population==80,"PICK_ENDPOINT_POPULATION");
 }
+
+unittest { runEndpointCells(); }

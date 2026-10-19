@@ -350,6 +350,13 @@ uint32_t dembree_test_refine_calls(DembreeOwner *o) { return o ? o->refineCalls 
 void dembree_test_seed_first(DembreeOwner* o,uint32_t v) { if(o) o->seedFirst=v!=0; }
 uint32_t dembree_test_working_bound(DembreeOwner* o) { return o ? o->workingBits : 0; }
 uint32_t dembree_test_callback_calls(DembreeOwner* o) { return o ? o->callbackCalls : 0; }
+uint32_t dembree_test_fp_state(uint32_t state,uint32_t write) {
+#if (defined(__SSE__) || defined(_M_X64) || defined(_M_IX86)) && !defined(__EMSCRIPTEN__)
+    const uint32_t old=_mm_getcsr(); if(write) _mm_setcsr(state); return old;
+#else
+    (void)state; (void)write; return 0;
+#endif
+}
 uint32_t dembree_test_rne(double v) { return encode(v); }
 uint32_t dembree_test_rejections(DembreeOwner *o) { return o ? o->rejections : 0; }
 #endif

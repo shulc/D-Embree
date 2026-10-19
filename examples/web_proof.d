@@ -9,6 +9,10 @@ void main() {
     bool caught;
     try { throw new Exception("owned D exception"); } catch(Exception) { caught=true; }
     check(caught,"PICK_D_EXCEPTION");
+    version(EmbreeProofEndpointTests) {
+        import embree.tests.closed_intervals_test : runEndpointCells;
+        runEndpointCells();
+    }
     RayAccel owner;
     float[] xyz=[0,0,0,2,0,0,0,2,0];
     uint[] ids=[0,1,2];
@@ -37,5 +41,15 @@ void main() {
         check(owner.build(xyz,ids)==Status.ok,"PICK_D_RECOVERY");
         check(owner.query(ray,hit)==Status.ok && hit.hit,"PICK_D_RECOVERY_QUERY");
     }
+    float[] grid; uint[] gridIds;
+    foreach(i;0..16384) {
+        float x=i*3; grid~=[x,0f,0,x+2,0,0,x,2,0];
+        gridIds~=[cast(uint)i*3,cast(uint)i*3+1,cast(uint)i*3+2];
+    }
+    check(owner.build(grid,gridIds)==Status.ok,"PICK_D_LARGE_BUILD");
+    foreach(i;0..grid.length/3) grid[i*3]+=100000;
+    check(owner.update(grid)==Status.ok,"PICK_D_LARGE_REFIT");
+    ray=Ray([100000.5f,.25f,1],[0,0,-1],1,1);
+    check(owner.query(ray,hit)==Status.ok && hit.hit && hit.triangle==0,"PICK_D_LARGE_QUERY");
     puts("DEMBREE_D_WEB=PASS ABI=20/4/8/12/16 REFIT=PASS RAW=PASS D_EXCEPTION=PASS");
 }

@@ -25,5 +25,6 @@ version(EmbreeTestFaults) {
         uint dembree_test_working_bound(DembreeOwner*);
         void dembree_test_seed_first(DembreeOwner*, uint);
         uint dembree_test_rne(double);
+        uint dembree_test_fp_state(uint, uint);
     }
 }

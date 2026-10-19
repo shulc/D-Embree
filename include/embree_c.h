@@ -43,6 +43,7 @@ DEMBREE_API void dembree_test_seed_first(DembreeOwner *, uint32_t);
 DEMBREE_API uint32_t dembree_test_working_bound(DembreeOwner *);
 DEMBREE_API uint32_t dembree_test_callback_calls(DembreeOwner *);
 DEMBREE_API uint32_t dembree_test_rne(double);
+DEMBREE_API uint32_t dembree_test_fp_state(uint32_t, uint32_t);
 DEMBREE_API uint32_t dembree_test_rejections(DembreeOwner *);
 #endif
 #ifdef __cplusplus

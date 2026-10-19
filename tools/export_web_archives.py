@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """Export CMake's ordered real Web link closure, refusing host archives."""
-import hashlib,json,shlex,shutil,sys
+import hashlib,json,shlex,shutil,sys,subprocess
 from pathlib import Path
 from build_manifest import sha
 if len(sys.argv)!=3:raise SystemExit('usage: export_web_archives.py BUILD DEST')
 build,dest=[Path(p).resolve() for p in sys.argv[1:]]
 reply=build/'.cmake/api/v1/reply'
 indices=list(reply.glob('index-*.json'))
-if not indices:raise SystemExit('EMBREE_WEB_STATIC_CLOSURE: missing CMake file API')
+if not indices:
+    query=build/'.cmake/api/v1/query';query.mkdir(parents=True,exist_ok=True);(query/'codemodel-v2').write_text('')
+    subprocess.run(['cmake','-S',str(Path(__file__).resolve().parents[1]),'-B',str(build)],check=True)
+    indices=list(reply.glob('index-*.json'))
+    if not indices:raise SystemExit('EMBREE_WEB_STATIC_CLOSURE: missing CMake file API')
 index=json.loads(max(indices).read_text());model=json.loads((reply/index['reply']['codemodel-v2']['jsonFile']).read_text())
 config,=model['configurations'];target,=[t for t in config['targets'] if t['name']=='dembree_smoke']
 data=json.loads((reply/target['jsonFile']).read_text())
