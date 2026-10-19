@@ -3,6 +3,9 @@
 import argparse
 import ctypes as c
 import hashlib
+import platform
+import subprocess
+import re
 from pathlib import Path
 
 parser = argparse.ArgumentParser()
@@ -26,6 +29,18 @@ class Hit(c.Structure):
 def check(value, marker):
     if not value:
         raise SystemExit(marker)
+expected_exports={'dembree_'+name for name in ('create','build','update','query','dispose','abi')}
+if platform.system()=='Linux':
+    symbols=subprocess.check_output(['nm','-D','--defined-only',str(library)],text=True)
+    exported={line.split()[-1] for line in symbols.splitlines() if line.split()}
+elif platform.system()=='Darwin':
+    symbols=subprocess.check_output(['nm','-gU',str(library)],text=True)
+    exported={line.split()[-1].removeprefix('_') for line in symbols.splitlines() if len(line.split())>=3}
+elif platform.system()=='Windows':
+    symbols=subprocess.check_output(['dumpbin','/NOLOGO','/EXPORTS',str(library)],text=True)
+    exported=set(re.findall(r'^\s+\d+\s+[0-9A-F]+\s+[0-9A-F]+\s+(\w+)',symbols,re.M))
+else:raise SystemExit('EMBREE_PUBLIC_EXPORTS: unsupported platform')
+check(exported==expected_exports,'EMBREE_PUBLIC_EXPORTS')
 lib = c.CDLL(str(library))
 check(not hasattr(lib, 'dembree_test_fault'), 'EMBREE_RUNTIME_PRODUCTION_FAULTS_OFF')
 class Abi(c.Structure):

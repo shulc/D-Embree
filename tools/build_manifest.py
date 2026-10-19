@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Authenticate source, patched upstream, effective compiler inputs and artifacts."""
-import hashlib,json,platform,subprocess
+import hashlib,json,platform,subprocess,os
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 SOURCE_DIRS=('include','csrc','native','tools','licenses')
@@ -16,7 +16,7 @@ def compiler_identity():
     p=Path(compiler).resolve()
     return {'path':str(p),'sha256':sha(p),'version':subprocess.run([str(p),'/Bv' if p.stem.lower()=='cl' else '--version'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True).stdout,'machine':platform.machine(),'system':platform.system(),'pointer_bits':__import__('struct').calcsize('P')*8}
 def input_key(faults):
-    body={'sources':source_inputs(),'compiler':compiler_identity(),'faults':bool(faults),'configuration':'Release','kernel':'USER-SSE2-exact-closed-interval-v1','tasking':'INTERNAL','cmake':subprocess.check_output(['cmake','--version'],text=True)}
+    body={'sources':source_inputs(),'compiler':compiler_identity(),'faults':bool(faults),'configuration':'Release','kernel':'USER-SSE2-exact-closed-interval-v1','tasking':'INTERNAL','environment':{k:os.environ.get(k) for k in ('CC','CXX','CFLAGS','CXXFLAGS','CPPFLAGS','LDFLAGS','SDKROOT','MACOSX_DEPLOYMENT_TARGET','CMAKE_GENERATOR','CMAKE_OSX_ARCHITECTURES')},'cmake':subprocess.check_output(['cmake','--version'],text=True)}
     body['fingerprint']=hashlib.sha256(json.dumps(body,sort_keys=True).encode()).hexdigest();return body
 def ready(build,prefix,inputs):
     upstream=build/'_deps/dembree_upstream-src'

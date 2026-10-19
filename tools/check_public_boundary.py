@@ -51,12 +51,20 @@ def selftest():
         r=Path(t);subprocess.run(['git','init','-q','-b','main',t],check=True)
         subprocess.run(['git','-C',t,'config','user.email','fixture@example.invalid'],check=True)
         subprocess.run(['git','-C',t,'config','user.name','Fixture'],check=True)
-        p=r/'source/embree/c.d';p.parent.mkdir(parents=True);p.write_bytes(FORBIDDEN[0])
-        subprocess.run(['git','-C',t,'add','source/embree/c.d'],check=True)
+        for name in ROOT_FILES:(r/name).write_text('fixture')
+        for directory in ROOT_DIRS:
+            q=r/directory/'fixture.txt';q.parent.mkdir(parents=True,exist_ok=True);q.write_text('fixture')
+        p=r/'source/embree/c.d';p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(FORBIDDEN[0])
+        staged=[str(q.relative_to(r)) for q in r.rglob('*') if q.is_file() and '.git' not in q.relative_to(r).parts]
+        subprocess.run(['git','-C',t,'add','--',*staged],check=True)
         subprocess.run(['git','-C',t,'commit','-qm','fixture'],check=True)
-        oid=git(r,'rev-parse','HEAD:source/embree/c.d').decode().strip()
-        try:check('source/embree/c.d',git(r,'cat-file','blob',oid),'100644')
-        except ValueError:pass
+        p.write_text('module embree.c;')
+        subprocess.run(['git','-C',t,'add','source/embree/c.d'],check=True)
+        subprocess.run(['git','-C',t,'commit','-qm','clean fixture'],check=True)
+        run(r,history=False)
+        try:run(r,history=True)
+        except ValueError as error:
+            if 'private token' not in str(error):raise
         else:raise ValueError('history negative stayed green')
     print('EMBREE_PUBLIC_SOURCE_EXPORT_CONTROLS=PASS CELLS=6')
 if __name__=='__main__':

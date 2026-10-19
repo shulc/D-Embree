@@ -32,6 +32,7 @@ static void checkQuery(DembreeOwner* o,const DembreeRay& r,uint32_t id,uint32_t 
 }
 static void endpoints() {
     unsigned population=0;
+    unsigned cellIndex=0;
     for(const auto& c:endpointCells) for(unsigned expanded=0;expanded<2;++expanded) {
         DembreeOwner* o=nullptr;CHECK(dembree_create(&o)==0,"PICK_CREATE");
         for(unsigned phase=0;phase<2;++phase) {
@@ -44,10 +45,11 @@ static void endpoints() {
             std::vector<uint32_t> ids;tree(xyz,ids,expanded?32:0);
             CHECK(xyz.size()==(expanded?297:9) && ids.size()==(expanded?99:3),"PICK_ENDPOINT_POPULATION");
             CHECK((phase?dembree_update(o,xyz.data(),ids.size()):dembree_build(o,xyz.data(),ids.size(),ids.data(),ids.size()/3))==0,"PICK_ENDPOINT_SETUP");
-            checkQuery(o,ray,0,c.expected[0],c.expected[1],c.expected[2],"PICK_ENDPOINT_TREE_ZERO_SINGLETON_NEAR_FAR");
+            const char* markers[]={"PICK_ENDPOINT_TREE_ORDINARY","PICK_ENDPOINT_TREE_ZERO","PICK_ENDPOINT_TREE_SINGLETON","PICK_ENDPOINT_TREE_NEAR","PICK_ENDPOINT_TREE_FAR"};
+            checkQuery(o,ray,0,c.expected[0],c.expected[1],c.expected[2],markers[cellIndex/2/8]);
             ++population;
         }
-        dembree_dispose(&o);
+        dembree_dispose(&o);++cellIndex;
     }
     CHECK(population==160,"PICK_ENDPOINT_POPULATION");
 }
