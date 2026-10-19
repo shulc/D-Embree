@@ -11,8 +11,14 @@ endforeach()
 
 # Compile the real scalar USER traversal with the legacy Windows SDK macros.
 # This also detects the collision on hosts without the Windows headers.
-add_library(dembree_windows_macros OBJECT EXCLUDE_FROM_ALL
-  "${dembree_upstream_SOURCE_DIR}/kernels/bvh/bvh_intersector1_bvh4.cpp")
+set(embree_intersector "${dembree_upstream_SOURCE_DIR}/kernels/bvh/bvh_intersector1_bvh4.cpp")
+add_library(dembree_windows_macros OBJECT EXCLUDE_FROM_ALL "${embree_intersector}")
+# The pinned upstream assigns per-source stack-protector flags in its own directory.
+# Copy that value into this target's directory without changing production.
+get_property(embree_source_flags SOURCE "${embree_intersector}"
+  TARGET_DIRECTORY embree PROPERTY COMPILE_FLAGS)
+set_property(SOURCE "${embree_intersector}" TARGET_DIRECTORY dembree_windows_macros
+  PROPERTY COMPILE_FLAGS "${embree_source_flags}")
 get_property(embree_compile_flags TARGET embree PROPERTY COMPILE_FLAGS)
 set_property(TARGET dembree_windows_macros PROPERTY COMPILE_FLAGS "${embree_compile_flags}")
 target_include_directories(dembree_windows_macros PRIVATE
