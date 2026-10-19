@@ -155,6 +155,16 @@ static void edges() {
         DembreeRay r={{uv[i][0],uv[i][1],1},{-0.0f,0,-1},0,2};DembreeHit h{};
         CHECK(dembree_query(o,&r,&h)==0 && h.hit==(i>=3),"PICK_EXACT_TRIANGLE_EDGE");
     }
+    // Coplanar and collinear exact D=0 must be ordinary misses.
+    DembreeRay coplanar={{.25f,.25f,0},{1,0,0},0,2};DembreeHit h{};
+    CHECK(dembree_query(o,&coplanar,&h)==0 && !h.hit,"PICK_EXACT_PARALLEL_DEGENERATE");
+#ifdef DEMBREE_TEST_FAULTS
+    for(unsigned endpoint=0;endpoint<2;++endpoint) {
+        DembreeRay r={{.25f,.25f,1},{0,0,-1},endpoint?0.0f:1.0f,endpoint?1.0f:2.0f};
+        dembree_test_fault(o,22);
+        checkQuery(o,r,0,0x3f800000,0x3e800000,0x3e800000,"PICK_EXACT_ENDPOINT_ASSIGN");
+    }
+#endif
     dembree_dispose(&o);
 }
 static void rangeRefusal() {

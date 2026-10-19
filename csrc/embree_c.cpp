@@ -195,6 +195,9 @@ static bool refine(const DembreeOwner *o, uint32_t id, const DembreeRay &r, cons
     if(o->fault==13) s.t=std::nextafter(double(r.far_t),std::numeric_limits<double>::infinity());
 #endif
     if(!std::isfinite(s.t) || !std::isfinite(u) || !std::isfinite(v)) return false;
+#ifdef DEMBREE_TEST_FAULTS
+    if(o->fault==22) s.t=0; // Reached endpoint-copy discriminator.
+#endif
     uint32_t tb=encode(s.t), ub=encode(u), vb=encode(v);
     if(lower(certificate,r.near_t).sign()==0) tb=bits(r.near_t);
     else if(upper(certificate,r.far_t).sign()==0) tb=bits(r.far_t);
@@ -328,7 +331,7 @@ int dembree_query(DembreeOwner *o,const DembreeRay *ray,DembreeHit *out) {
 #endif
             const bool refined=refine(o,q.id,*ray,q.winner,*out);
 #ifdef DEMBREE_TEST_FAULTS
-            if(o->fault>=9 && o->fault<=20) o->fault=0;
+            if(o->fault>=9 && o->fault<=22) o->fault=0;
 #endif
             if(!refined) { *out={}; o->clear(); return DEMBREE_NATIVE_ERROR; }
         }
