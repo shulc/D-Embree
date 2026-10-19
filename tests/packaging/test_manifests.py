@@ -54,7 +54,7 @@ class Provenance(unittest.TestCase):
                 self.assertEqual(staged['fingerprint'],inputs['fingerprint'],'STAGED_FINGERPRINT')
                 self.assertIs(staged['faults'],False,'STAGED_PRODUCTION_MODE')
                 self.assertEqual(native.validate(prefix),good,'NATIVE_CURRENT')
-                self.assertIn('source/fixture.d',good['sources'],'D_SOURCE_INPUT')
+                self.assertIn(str(Path('source/fixture.d')),good['sources'],'D_SOURCE_INPUT')
                 compiler.write_text('changed')
                 with self.assertRaisesRegex(RuntimeError,'EMBREE_BUILD_COMPILER_IDENTITY',msg='EFFECTIVE_COMPILER_BYTES'):native.validate(prefix)
                 compiler.write_text('compiler')
