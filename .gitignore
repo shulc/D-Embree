@@ -5,3 +5,7 @@ triangle_refit
 triangle_refit.exe
 d-embree-test-*
 __pycache__/
+
+/libd-embree.a
+/d-embree.lib
+/libd-embree.lib

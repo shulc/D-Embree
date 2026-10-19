@@ -14,11 +14,20 @@ jobs:
           compiler: ldc-latest
       - uses: ilammy/msvc-dev-cmd@v1
         if: runner.os == 'Windows'
-      - run: cmake -S . -B .build/review -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DDEMBREE_TEST_FAULTS=ON
+      - run: cmake -G Ninja -S . -B .build/review -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DDEMBREE_TEST_FAULTS=ON
       - run: cmake --build .build/review --config Release --parallel 6
       - run: ctest --test-dir .build/review -C Release --output-on-failure
-      - run: dub test --config=tests
-      - run: dub run --config=triangle_refit
+      - run: python tools/run_dub.py tests
+      - run: python tools/run_dub.py triangle_refit
+      - run: python tools/stage_runtime.py --prefix .build/native-runtime --dest .build/staged
+      - shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            Linux) runtime=libdembree.so ;;
+            macOS) runtime=libdembree.dylib ;;
+            Windows) runtime=dembree.dll ;;
+          esac
+          python tools/verify_runtime.py --library ".build/staged/$runtime" --licenses .build/staged/licenses/dembree
       - run: python tools/check_public_boundary.py --self-test
   web:
     runs-on: ubuntu-24.04
