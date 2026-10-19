@@ -20,7 +20,7 @@ class Provenance(unittest.TestCase):
                 (prefix/'lib').mkdir();(prefix/'lib/dembree.dll').write_text('runtime')
                 upstream=build/'_deps/dembree_upstream-src/include/embree4';upstream.mkdir(parents=True)
                 for i in range(9):(upstream/(str(i)+'.h')).write_text(str(i))
-                archive=build/'_deps/dembree_upstream-build';archive.mkdir();(archive/'embree.lib').write_text('static');(archive/'EMBREE.LIB').write_text('static')
+                archive=build/'_deps/dembree_upstream-build';archive.mkdir();(archive/'embree.lib').write_text('static');(archive/'EMBREE_UPPER.LIB').write_text('static')
                 compiler=root/'.build/compiler-bin';compiler.write_text('compiler')
                 (build/'CMakeCache.txt').write_text('CMAKE_CXX_COMPILER:FILEPATH='+str(compiler)+'\n')
                 (build/'compile_commands.json').write_text('[]')
@@ -37,7 +37,7 @@ class Provenance(unittest.TestCase):
                     with patch.dict(os.environ,{key:'changed'}):
                         with self.assertRaises(RuntimeError,msg='NATIVE_ENV_'+key):native.validate(prefix)
                 self.assertIn(str(archive/'embree.lib'),good['native_inputs'],'MSVC_STATIC_CLOSURE')
-                self.assertIn(str(archive/'EMBREE.LIB'),good['native_inputs'],'MSVC_STATIC_CASE')
+                self.assertIn(str(archive/'EMBREE_UPPER.LIB'),good['native_inputs'],'MSVC_STATIC_CASE')
                 with self.assertRaisesRegex(RuntimeError,'EMBREE_BUILD_ROOT_IDENTITY',msg='READY_ROOT'):native.ready(build.parent,prefix,inputs)
                 changed=dict(inputs,configuration='Debug')
                 with self.assertRaisesRegex(RuntimeError,'EMBREE_BUILD_FINGERPRINT',msg='READY_FRESH'):native.ready(build,prefix,changed)
@@ -89,7 +89,7 @@ class Provenance(unittest.TestCase):
             self.assertIn(name,ignores,'DUB_GENERATED_ARCHIVE_'+name)
     def test_web(self):
         with tempfile.TemporaryDirectory() as t:
-            root=Path(t);runtime=root/'runtime';sdk=root/'sdk';ldc=root/'bin/ldc2'
+            root=Path(t).resolve();runtime=root/'runtime';sdk=root/'sdk';ldc=root/'bin/ldc2'
             files=[ldc,ldc.with_name('ldc-build-runtime'),ldc.parent.parent/'etc/ldc2.conf']
             files += [sdk/rel for rel in ('upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake','upstream/emscripten/emcc','upstream/emscripten/em++','upstream/emscripten/emar','upstream/emscripten/emranlib','upstream/bin/clang','upstream/bin/clang++','upstream/bin/llvm-ar','upstream/bin/wasm-ld','.emscripten','cache/include/stdlib.h','upstream/emscripten/emcc.py','upstream/emscripten/src/settings.js')]
             files += [runtime/rel for rel in ('ldc-src.zip','ldc-src/runtime/CMakeLists.txt','ldc-src/runtime/a.d','ldc-src/runtime/a.c','ldc-src/runtime/a.cpp','lib/libphobos2-ldc.a','lib/libdruntime-ldc.a','objects/a.o','build.ninja','generated.d')]
