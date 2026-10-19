@@ -86,20 +86,7 @@ if(EXISTS "${dembree_upstream_SOURCE_DIR}/NOTICE")
   install(FILES "${dembree_upstream_SOURCE_DIR}/NOTICE" DESTINATION share/licenses/dembree COMPONENT runtime)
 endif()
 if(BUILD_TESTING)
-  # Compile the real scalar USER traversal with the legacy Windows SDK macros.
-  # This also detects the collision on hosts without the Windows headers.
-  add_library(dembree_windows_macros OBJECT EXCLUDE_FROM_ALL
-    "${dembree_upstream_SOURCE_DIR}/kernels/bvh/bvh_intersector1_bvh4.cpp")
-  get_property(embree_compile_flags TARGET embree PROPERTY COMPILE_FLAGS)
-  set_property(TARGET dembree_windows_macros PROPERTY COMPILE_FLAGS "${embree_compile_flags}")
-  target_include_directories(dembree_windows_macros PRIVATE
-    "$<TARGET_PROPERTY:embree,INCLUDE_DIRECTORIES>")
-  target_compile_options(dembree_windows_macros PRIVATE
-    "$<TARGET_PROPERTY:embree,COMPILE_OPTIONS>")
-  target_compile_definitions(dembree_windows_macros PRIVATE
-    "$<TARGET_PROPERTY:embree,COMPILE_DEFINITIONS>" near= far=)
-  add_test(NAME dembree_windows_macros COMMAND "${CMAKE_COMMAND}" --build
-    "${CMAKE_BINARY_DIR}" --config $<CONFIG> --target dembree_windows_macros)
+  add_subdirectory(tests/windows_macros)
   add_executable(dembree_smoke tests/native/smoke.cpp)
   target_compile_features(dembree_smoke PRIVATE cxx_std_17)
   target_include_directories(dembree_smoke PRIVATE tests/fixtures csrc)
