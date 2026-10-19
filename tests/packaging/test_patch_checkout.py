@@ -11,6 +11,11 @@ PATCH = 'native/patches/embree4.4.1-user-closed-interval.patch'
 
 
 class PatchCheckout(unittest.TestCase):
+    def test_ci(self):
+        workflow = (ROOT / '.github/workflows/ci.yml').read_text()
+        self.assertIn('python -m unittest discover -s tests/packaging', workflow,
+                      'PATCH_CHECKOUT_CI_WIRING')
+
     def test_checkout(self):
         original = (ROOT / PATCH).read_bytes()
         self.assertGreater(original.count(b'\n'), 10, 'PATCH_POPULATION')
