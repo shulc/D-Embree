@@ -45,8 +45,9 @@ class Provenance(unittest.TestCase):
                 with patch.object(sys,'argv',['stage_runtime.py','--prefix',str(prefix),'--dest',str(dest)]):
                     runpy.run_path(str(Path(__file__).resolve().parents[2]/'tools/stage_runtime.py'),run_name='__main__')
                 staged=json.loads((dest/'dembree-runtime.json').read_text())
-                expected_staged={str(Path('dembree.dll')),*[str(Path('licenses/dembree')/name) for name in notices]}
-                self.assertEqual(set(staged['artifacts']),expected_staged,'STAGED_NOTICE_POPULATION')
+                expected_staged={str(Path('dembree.dll')):good['artifacts']['lib/dembree.dll']}
+                expected_staged.update({str(Path('licenses/dembree')/name):good['artifacts']['share/licenses/dembree/'+name] for name in notices})
+                self.assertEqual(staged['artifacts'],expected_staged,'STAGED_ARTIFACT_SOURCE_BYTES')
                 for name,digest in staged['artifacts'].items():
                     self.assertEqual(native.sha(dest/name),digest,'STAGED_ARTIFACT_BYTES')
                 self.assertEqual(staged['runtime'],'dembree.dll','STAGED_RUNTIME_NAME')
