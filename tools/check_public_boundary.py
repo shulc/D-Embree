@@ -3,7 +3,7 @@
 import argparse,hashlib,json,os,subprocess,tempfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
-ROOT_FILES={'LICENSE','README.md','THIRD_PARTY_LICENSES.md','CMakeLists.txt','dub.json','.gitignore'}
+ROOT_FILES={'LICENSE','README.md','THIRD_PARTY_LICENSES.md','CMakeLists.txt','dub.json','.gitignore','.gitattributes'}
 ROOT_DIRS={'include','csrc','source','native','tools','tests','examples','licenses','.github'}
 FORBIDDEN=[b'vibe'+b'3d',b'task'+b'2026',b'doc/'+b'receipts',b'/'+b'home/',b'lx'+b'sdk',b'\x5cUsers\x5c',b'scratch/'+b'slice']
 EXTENSIONS={'.md','.txt','.json','.yml','.yaml','.cmake','.cpp','.h','.d','.py','.map','.apple','.patch','.inc','.tsv'}

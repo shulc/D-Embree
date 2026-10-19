@@ -1,0 +1,2 @@
+# git apply matches the authenticated LF upstream archive byte for byte.
+/native/patches/*.patch text eol=lf
