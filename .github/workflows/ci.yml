@@ -28,6 +28,7 @@ jobs:
             Windows) runtime=dembree.dll ;;
           esac
           python tools/verify_runtime.py --library ".build/staged/$runtime" --licenses .build/staged/licenses/dembree
+      - run: python tests/packaging/test_manifests.py
       - run: python tools/check_public_boundary.py --self-test
   web:
     runs-on: ubuntu-24.04

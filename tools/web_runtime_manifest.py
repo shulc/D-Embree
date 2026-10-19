@@ -26,6 +26,17 @@ def runtime_identity(runtime,ldc,emsdk):
             if not compiler.is_relative_to(emsdk/'upstream/emscripten') or '-pthread' not in argv:raise RuntimeError('DEMBREE_WEB_RUNTIME_C_FLAGS')
             if source.suffix in ('.cpp','.cc','.cxx') and '-fexceptions' not in argv:raise RuntimeError('DEMBREE_WEB_RUNTIME_CXX_FLAGS')
             ccount+=1
+    ninja_commands=subprocess.check_output(['ninja','-C',str(runtime),'-t','commands'],text=True)
+    for line in ninja_commands.splitlines():
+        argv=shlex.split(line)
+        if str(ldc) not in argv:continue
+        if '-c' in argv:
+            if not all(t in argv for t in ('-mtriple=wasm32-unknown-emscripten','-mattr=+atomics,+bulk-memory,+simd128')):raise RuntimeError('DEMBREE_WEB_RUNTIME_D_FLAGS')
+            dcount+=1
+        if '-lib' in argv:
+            for token in argv:
+                if token.endswith('.o'):
+                    paths.add((runtime/token).resolve(strict=True))
     if not dcount or not ccount:raise RuntimeError('DEMBREE_WEB_RUNTIME_LANGUAGE_POPULATION')
     for rel in ('ldc-src.zip','ldc-src/runtime/CMakeLists.txt','lib/libphobos2-ldc.a','lib/libdruntime-ldc.a'):
         paths.add(runtime/rel)
@@ -39,7 +50,7 @@ def runtime_identity(runtime,ldc,emsdk):
         if q.is_file():paths.add(q)
     files={str(q):sha(q) for q in sorted(paths)}
     versions={str(q):subprocess.check_output([str(q),'--version'],text=True,stderr=subprocess.STDOUT) for q in (ldc,emsdk/'upstream/emscripten/emcc',emsdk/'upstream/bin/clang')}
-    body={'root':str(runtime),'files':files,'versions':versions,'environment':{k:os.environ.get(k) for k in ('EMSDK','EM_CONFIG','EM_CACHE','EMCC_CFLAGS','CFLAGS','CXXFLAGS','LDFLAGS')},'languages':{'D':dcount,'C/C++':ccount}}
+    body={'root':str(runtime),'files':files,'versions':versions,'environment':{k:os.environ.get(k) for k in ('EMSDK','EM_CONFIG','EM_CACHE','EMCC_CFLAGS','CFLAGS','CXXFLAGS','LDFLAGS')},'languages':{'D':dcount,'C/C++':ccount},'ninja_commands':ninja_commands}
     return {'fingerprint':hashlib.sha256(json.dumps(body,sort_keys=True).encode()).hexdigest(),'body':body}
 
 def authenticate_runtime(runtime,ldc,emsdk,accept=False):

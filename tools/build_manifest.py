@@ -22,8 +22,13 @@ def compiler_identity():
     if not compiler:raise RuntimeError('DEMBREE_COMPILER_MISSING')
     p=Path(compiler).resolve()
     return {'path':str(p),'sha256':sha(p),'version':subprocess.run([str(p),'/Bv' if p.stem.lower()=='cl' else '--version'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True).stdout,'machine':platform.machine(),'system':platform.system(),'pointer_bits':__import__('struct').calcsize('P')*8}
+def environment_identity():
+    result={k:os.environ.get(k) for k in ENVIRONMENT}
+    loader_paths={str(ROOT/'.build'/m/'bin') for m in ('native-runtime','test-runtime')}
+    result['PATH']=os.pathsep.join(p for p in os.environ.get('PATH','').split(os.pathsep) if p not in loader_paths)
+    return result
 def input_key(faults):
-    body={'sources':source_inputs(),'compiler':compiler_identity(),'faults':bool(faults),'configuration':'Release','kernel':'USER-SSE2-exact-closed-interval-v1','tasking':'INTERNAL','generator':native_generator(),'environment':{k:os.environ.get(k) for k in ENVIRONMENT},'cmake':subprocess.check_output(['cmake','--version'],text=True)}
+    body={'sources':source_inputs(),'compiler':compiler_identity(),'faults':bool(faults),'configuration':'Release','kernel':'USER-SSE2-exact-closed-interval-v1','tasking':'INTERNAL','generator':native_generator(),'environment':environment_identity(),'cmake':subprocess.check_output(['cmake','--version'],text=True)}
     body['fingerprint']=hashlib.sha256(json.dumps(body,sort_keys=True).encode()).hexdigest();return body
 def owned_roots(faults,fingerprint):
     mode='test' if faults else 'native'
