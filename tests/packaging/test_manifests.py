@@ -13,6 +13,7 @@ class Provenance(unittest.TestCase):
             root=Path(t).resolve()
             for d in native.SOURCE_DIRS:(root/d).mkdir()
             for f in ('CMakeLists.txt','dub.json','LICENSE','THIRD_PARTY_LICENSES.md'):(root/f).write_text('fixture')
+            (root/'source/fixture.d').write_text('module fixture;')
             (root/'native/patches').mkdir();(root/'native/patches/preimages.json').write_text('{}')
             with patch.object(native,'ROOT',root):
                 inputs=native.input_key(False);build,prefix=native.owned_roots(False,inputs['fingerprint']);build.mkdir(parents=True);prefix.mkdir(parents=True)
@@ -20,10 +21,21 @@ class Provenance(unittest.TestCase):
                 upstream=build/'_deps/dembree_upstream-src/include/embree4';upstream.mkdir(parents=True)
                 for i in range(9):(upstream/(str(i)+'.h')).write_text(str(i))
                 archive=build/'_deps/dembree_upstream-build';archive.mkdir();(archive/'embree.lib').write_text('static')
-                (build/'CMakeCache.txt').write_text('CMAKE_CXX_COMPILER:FILEPATH='+sys.executable+'\n')
+                compiler=root/'.build/compiler-bin';compiler.write_text('compiler')
+                (build/'CMakeCache.txt').write_text('CMAKE_CXX_COMPILER:FILEPATH='+str(compiler)+'\n')
                 (build/'compile_commands.json').write_text('[]')
                 good=native.ready(build,prefix,inputs)
                 self.assertEqual(native.validate(prefix),good,'NATIVE_CURRENT')
+                self.assertIn('source/fixture.d',good['sources'],'D_SOURCE_INPUT')
+                compiler.write_text('changed')
+                with self.assertRaisesRegex(RuntimeError,'EMBREE_BUILD_COMPILER_IDENTITY',msg='EFFECTIVE_COMPILER_BYTES'):native.validate(prefix)
+                compiler.write_text('compiler')
+                escaped=copy.deepcopy(good);escaped['native_inputs']={str(prefix/'lib/dembree.dll'):native.sha(prefix/'lib/dembree.dll')};(prefix/'manifest.json').write_text(json.dumps(escaped))
+                with self.assertRaisesRegex(RuntimeError,'EMBREE_DEPENDENCY_INPUT_FRESHNESS',msg='NATIVE_INPUT_OWNER'):native.validate(prefix)
+                (prefix/'manifest.json').write_text(json.dumps(good))
+                for key in ('INCLUDE','LIB','LIBPATH','PATH'):
+                    with patch.dict(os.environ,{key:'changed'}):
+                        with self.assertRaises(RuntimeError,msg='NATIVE_ENV_'+key):native.validate(prefix)
                 self.assertIn(str(archive/'embree.lib'),good['native_inputs'],'MSVC_STATIC_CLOSURE')
                 with self.assertRaisesRegex(RuntimeError,'EMBREE_BUILD_ROOT_IDENTITY',msg='READY_ROOT'):native.ready(build.parent,prefix,inputs)
                 changed=dict(inputs,configuration='Debug')
@@ -90,6 +102,13 @@ class Provenance(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError,'DEMBREE_WEB_RUNTIME_FINGERPRINT',msg='WEB_REQUIRES_STAMP'):web.authenticate_runtime(runtime,ldc,sdk)
                 good=web.authenticate_runtime(runtime,ldc,sdk,accept=True)
                 self.assertEqual(web.authenticate_runtime(runtime,ldc,sdk),good,'WEB_AUTHENTICATED_REUSE')
+                for key in ('EMSDK','EM_CONFIG','EM_CACHE','EMCC_CFLAGS','CFLAGS','CXXFLAGS','LDFLAGS'):
+                    value=str(sdk/'.emscripten') if key=='EM_CONFIG' else 'changed'
+                    with patch.dict(os.environ,{key:value}):
+                        with self.assertRaisesRegex(RuntimeError,'DEMBREE_WEB_RUNTIME_FINGERPRINT',msg='WEB_ENV_'+key):web.authenticate_runtime(runtime,ldc,sdk)
+                def changed_version(argv,**kw):return output(argv,**kw) if argv[0]=='ninja' else 'changed version'
+                with patch.object(web.subprocess,'check_output',side_effect=changed_version):
+                    with self.assertRaisesRegex(RuntimeError,'DEMBREE_WEB_RUNTIME_FINGERPRINT',msg='WEB_EFFECTIVE_VERSION'):web.authenticate_runtime(runtime,ldc,sdk)
                 for f in (cache,commands,sdk/'upstream/bin/clang',runtime/'lib/libphobos2-ldc.a',runtime/'objects/a.o',runtime/'ldc-src/runtime/a.d',runtime/'build.ninja',runtime/'generated.d',sdk/'cache/include/stdlib.h',ldc.parent.parent/'etc/ldc2.conf',sdk/'upstream/emscripten/emcc.py',sdk/'upstream/emscripten/src/settings.js'):
                     original=f.read_bytes();f.write_bytes(original+b' ')
                     with self.assertRaises((RuntimeError,ValueError),msg='WEB_REFUSE_'+f.name):web.authenticate_runtime(runtime,ldc,sdk)
