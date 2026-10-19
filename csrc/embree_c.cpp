@@ -150,7 +150,13 @@ static void intersectCallback(const RTCIntersectFunctionNArguments* args) noexce
             return;
         }
         if(q->hit && !nearer(c,q->winner)) return;
+#ifdef DEMBREE_TEST_FAULTS
+        const bool corruptBound=q->owner->fault==21;
+        if(corruptBound) q->owner->fault=0;
+        const uint32_t bound=workingBound(c,corruptBound);
+#else
         const uint32_t bound=workingBound(c);
+#endif
         q->winner=c; q->id=id; q->hit=true;
         auto* rh=reinterpret_cast<RTCRayHit*>(args->rayhit);
         std::memcpy(&rh->ray.tfar,&bound,4);

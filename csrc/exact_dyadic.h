@@ -103,7 +103,7 @@ inline bool admitted(const Certificate& q,float a,float b) {
         lower(q,a).sign()>=0 && upper(q,b).sign()>=0;
 }
 inline bool nearer(const Certificate& q,const Certificate& old) { return (q.t*old.d-old.t*q.d).sign()<0; }
-inline uint32_t workingBound(const Certificate& q) {
+inline uint32_t workingBound(const Certificate& q, bool corrupt=false) {
     uint32_t u=encode(q.t.value()/q.d.value());
     if(u>=0x7f800000u) return 0x7f800000u;
     // Certify before and after the extra outward ULP and the FTZ/DAZ floor.
@@ -112,6 +112,11 @@ inline uint32_t workingBound(const Certificate& q) {
     }
     if(u<0x7f800000u) ++u;
     if(u<0x00800000u) u=0x00800000u;
+#ifdef DEMBREE_TEST_FAULTS
+    if(corrupt) u=0;
+#else
+    (void)corrupt;
+#endif
     if(u<0x7f800000u && (Expansion(decode(u))*q.d-q.t).sign()<0)
         throw std::runtime_error("TFAR_CERTIFICATE");
     return u;

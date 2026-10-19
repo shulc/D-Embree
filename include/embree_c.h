@@ -30,7 +30,7 @@ DEMBREE_API int dembree_query(DembreeOwner *, const DembreeRay *, DembreeHit *);
 DEMBREE_API void dembree_dispose(DembreeOwner **);
 DEMBREE_API void dembree_abi(DembreeAbi *);
 #ifdef DEMBREE_TEST_FAULTS
-/* Faults 16=exact capacity,17=lane,18=ID,19=callback,20=publication; 1=device,2=scene,3=buffer,4=commit,5=update,6=caught C++ throw.
+/* Faults 16=exact capacity,17=lane,18=ID,19=callback,20=publication,21=bound-certificate; 1=device,2=scene,3=buffer,4=commit,5=update,6=caught C++ throw.
  * 7=query allocation,8=query device-error callback.
  * 9=final ID,10=determinant,11=ratio,12=float overflow,13=final interval,14/15=v float overflow/ratio. Fault is consumed once. Before create use a null owner. */
 DEMBREE_API void dembree_test_fault(DembreeOwner *, uint32_t);

@@ -83,6 +83,7 @@ static void special(unsigned mode) {
     cells.push_back({packed({0,0,1,1,0,1,0,1,1}),{{word(0x200),word(0x100),0},{0,0,1},1,1},0x3f800000,0x200,0x100,"PICK_SUBNORMAL_PUBLICATION"});
     cells.push_back({packed({.25,-2,0x1p-100,1.25,-2,0x1p-100,.25,2,0x1p-100}),{{0,0,0},{word(encode(0x1p-50)),0,word(1)},word(encode(0x1p49)),word(encode(0x1p49))},encode(0x1p49),0x3e800000,0x3f000000,"PICK_USER_SLAB_CONSERVATIVE"});
     cells.push_back({packed({0,0,0,0x1p-138,0,0,0,0x1p-138,0}),{{word(0x200),word(0x100),word(0x200)},{0,0,word(0x80000200)},1,1},0x3f800000,0x3e800000,0x3e000000,"PICK_USER_BOUND_FTZ"});
+    cells.push_back({packed({0,0,0,-0x1p-138,0,0,0,-0x1p-138,0}),{{word(0x80000200),word(0x80000100),word(0x200)},{0,0,word(0x80000200)},1,1},0x3f800000,0x3e800000,0x3e000000,"PICK_USER_BOUND_FTZ"});
     for(auto& c:cells) {
         std::vector<uint32_t> ids;tree(c.xyz,ids);
         DembreeOwner* o=nullptr;CHECK(dembree_create(&o)==0,"PICK_CREATE");
@@ -103,7 +104,7 @@ static void faults() {
     auto xyz=packed({-1,-1,0x1p-40,1,-1,0x1p-40,0,1,0x1p-40});std::vector<uint32_t> ids;tree(xyz,ids);
     DembreeRay r={{0,0,0},{0,0,word(encode(0x1p100))},word(0x200),word(0x200)};
     DembreeOwner* o=nullptr;CHECK(dembree_create(&o)==0,"PICK_CREATE");
-    for(uint32_t fault=16;fault<=20;++fault) for(unsigned phase=0;phase<2;++phase) {
+    for(uint32_t fault=16;fault<=21;++fault) for(unsigned phase=0;phase<2;++phase) {
         CHECK(dembree_build(o,xyz.data(),ids.size(),ids.data(),ids.size()/3)==0,"PICK_FAULT_SETUP");
         if(phase)CHECK(dembree_update(o,xyz.data(),ids.size())==0,"PICK_FAULT_SETUP");
         const auto before=dembree_test_callback_calls(o);
@@ -144,6 +145,17 @@ static void seeded() {
         dembree_dispose(&o);
     }
 #endif
+}
+static void edges() {
+    DembreeOwner* o=nullptr;CHECK(dembree_create(&o)==0,"PICK_CREATE");
+    float xyz[]={0,0,0,1,0,0,0,1,0};const uint32_t ids[]={0,1,2};
+    CHECK(dembree_build(o,xyz,3,ids,1)==0,"PICK_EDGE_SETUP");
+    const float uv[][2]={{-0x1p-24f,.25f},{.25f,-0x1p-24f},{.75f,.75f},{0,.25f},{.25f,0},{.75f,.25f}};
+    for(unsigned i=0;i<6;++i) {
+        DembreeRay r={{uv[i][0],uv[i][1],1},{-0.0f,0,-1},0,2};DembreeHit h{};
+        CHECK(dembree_query(o,&r,&h)==0 && h.hit==(i>=3),"PICK_EXACT_TRIANGLE_EDGE");
+    }
+    dembree_dispose(&o);
 }
 static void rangeRefusal() {
     DembreeOwner* o=nullptr;CHECK(dembree_create(&o)==0,"PICK_CREATE");
@@ -186,7 +198,7 @@ static void unsupportedMode() {
 #endif
 }
 int main() {
-    endpoints();exactNearest();rangeRefusal();unsupportedMode();
+    endpoints();exactNearest();edges();rangeRefusal();unsupportedMode();
 #if (defined(__SSE__) || defined(_M_X64) || defined(_M_IX86)) && !defined(__EMSCRIPTEN__)
     const unsigned old=_mm_getcsr();
     for(unsigned mode:{0u,0x8000u,0x40u,0x8040u}) { _mm_setcsr((old&~0xe040u)|mode);special(mode);faults();rounding();seeded(); }
