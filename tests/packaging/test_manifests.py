@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Synthetic provenance controls; real build/loader proofs run separately."""
-import copy,json,os,sys,tempfile,unittest
+import copy,json,os,sys,tempfile,unittest,runpy
 from pathlib import Path
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'tools'))
@@ -58,22 +58,38 @@ class Provenance(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError,'DEMBREE_NATIVE_GENERATOR'):native.native_generator()
             with patch.object(native.shutil,'which',return_value=None):
                 with self.assertRaisesRegex(RuntimeError,'DEMBREE_NATIVE_GENERATOR'):native.native_generator()
+    def test_run_wrapper(self):
+        root=Path(__file__).resolve().parents[2]
+        for mode,dub_command,faults,directory in [('tests','test','ON','test-runtime'),('triangle_refit','run','OFF','native-runtime')]:
+            with patch.object(sys,'argv',['run_dub.py',mode]),patch.dict(os.environ),patch('subprocess.run') as run,patch.object(native,'validate') as validate:
+                runpy.run_path(str(root/'tools/run_dub.py'),run_name='__main__')
+                self.assertEqual(run.call_count,2,'DUB_WRAPPER_CALL_POPULATION')
+                self.assertEqual(run.call_args_list[0].args[0][-2:],['--faults',faults],'DUB_WRAPPER_BOOTSTRAP_MODE')
+                self.assertEqual(run.call_args_list[1].args[0],['dub',dub_command,'--config='+mode],'DUB_WRAPPER_COMMAND')
+                self.assertEqual(run.call_args_list[1].kwargs['env']['PATH'].split(os.pathsep)[0],str(root/'.build'/directory/'bin'),'DUB_WRAPPER_LOADER_MODE')
+                validate.assert_called_once_with(root/'.build'/directory,production=mode!='tests')
+        workflow=(root/'.github/workflows/ci.yml').read_text()
+        for term in ('python tools/run_dub.py tests','python tools/run_dub.py triangle_refit','python tools/stage_runtime.py --prefix .build/native-runtime','python tools/verify_runtime.py','-G Ninja','macos-15-intel'):
+            self.assertIn(term,workflow,'PRODUCTION_WORKFLOW_'+term)
+        ignores=(root/'.gitignore').read_text().splitlines()
+        for name in ('/libd-embree.a','/d-embree.lib','/libd-embree.lib'):
+            self.assertIn(name,ignores,'DUB_GENERATED_ARCHIVE_'+name)
     def test_web(self):
         with tempfile.TemporaryDirectory() as t:
             root=Path(t);runtime=root/'runtime';sdk=root/'sdk';ldc=root/'bin/ldc2'
             files=[ldc,ldc.with_name('ldc-build-runtime')]
-            files += [sdk/rel for rel in ('upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake','upstream/emscripten/emcc','upstream/emscripten/em++','upstream/emscripten/emar','upstream/emscripten/emranlib','upstream/bin/clang','upstream/bin/clang++','upstream/bin/llvm-ar','upstream/bin/wasm-ld','.emscripten')]
-            files += [runtime/rel for rel in ('ldc-src.zip','ldc-src/runtime/CMakeLists.txt','ldc-src/runtime/a.d','ldc-src/runtime/a.c','ldc-src/runtime/a.cpp','lib/libphobos2-ldc.a','lib/libdruntime-ldc.a','objects/a.o','build.ninja')]
+            files += [sdk/rel for rel in ('upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake','upstream/emscripten/emcc','upstream/emscripten/em++','upstream/emscripten/emar','upstream/emscripten/emranlib','upstream/bin/clang','upstream/bin/clang++','upstream/bin/llvm-ar','upstream/bin/wasm-ld','.emscripten','cache/include/stdlib.h')]
+            files += [runtime/rel for rel in ('ldc-src.zip','ldc-src/runtime/CMakeLists.txt','ldc-src/runtime/a.d','ldc-src/runtime/a.c','ldc-src/runtime/a.cpp','lib/libphobos2-ldc.a','lib/libdruntime-ldc.a','objects/a.o','build.ninja','generated.d')]
             for f in files:f.parent.mkdir(parents=True,exist_ok=True);f.write_text('fixture')
             cache=runtime/'CMakeCache.txt';cache.write_text('TARGET_SYSTEM:STRING=Emscripten;UNIX\nCMAKE_TOOLCHAIN_FILE:FILEPATH='+str(sdk/'upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake'))
             commands=runtime/'compile_commands.json';entries=[{'arguments':[str(sdk/'upstream/emscripten/emcc'),'-pthread','-c',str(runtime/'ldc-src/runtime/a.c')],'file':str(runtime/'ldc-src/runtime/a.c')}];entries.append({'arguments':[str(sdk/'upstream/emscripten/em++'),'-pthread','-fexceptions','-c',str(runtime/'ldc-src/runtime/a.cpp')],'file':str(runtime/'ldc-src/runtime/a.cpp')});commands.write_text(json.dumps(entries))
             ninja=str(ldc)+' -c -mtriple=wasm32-unknown-emscripten -mattr=+atomics,+bulk-memory,+simd128 a.d\n'+str(ldc)+' -lib objects/a.o'
-            def output(argv,**kw):return (ninja if argv[-1]=='commands' else '') if argv[0]=='ninja' else 'fixture version'
+            def output(argv,**kw):return (ninja if argv[-1]=='commands' else '    '+str(sdk/'cache/include/stdlib.h')) if argv[0]=='ninja' else 'fixture version'
             with patch.object(web.subprocess,'check_output',side_effect=output):
                 with self.assertRaisesRegex(RuntimeError,'DEMBREE_WEB_RUNTIME_FINGERPRINT',msg='WEB_REQUIRES_STAMP'):web.authenticate_runtime(runtime,ldc,sdk)
                 good=web.authenticate_runtime(runtime,ldc,sdk,accept=True)
                 self.assertEqual(web.authenticate_runtime(runtime,ldc,sdk),good,'WEB_AUTHENTICATED_REUSE')
-                for f in (cache,commands,sdk/'upstream/bin/clang',runtime/'lib/libphobos2-ldc.a',runtime/'objects/a.o',runtime/'ldc-src/runtime/a.d',runtime/'build.ninja'):
+                for f in (cache,commands,sdk/'upstream/bin/clang',runtime/'lib/libphobos2-ldc.a',runtime/'objects/a.o',runtime/'ldc-src/runtime/a.d',runtime/'build.ninja',runtime/'generated.d',sdk/'cache/include/stdlib.h'):
                     original=f.read_bytes();f.write_bytes(original+b' ')
                     with self.assertRaises((RuntimeError,ValueError),msg='WEB_REFUSE_'+f.name):web.authenticate_runtime(runtime,ldc,sdk)
                     f.write_bytes(original)
