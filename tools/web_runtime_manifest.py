@@ -26,7 +26,7 @@ def runtime_identity(runtime,ldc,emsdk):
     dependencies=subprocess.check_output(['ninja','-C',str(runtime),'-t','deps'],text=True)
     for line in dependencies.splitlines():
         if line.startswith('    ') and line.strip():paths.add((runtime/line.strip()).resolve(strict=True))
-    paths.update(runtime.rglob('*.d'))
+    paths.update(q for q in runtime.rglob('*.d') if q.is_file())
     if os.environ.get('EM_CONFIG'):paths.add(Path(os.environ['EM_CONFIG']).resolve(strict=True))
     for line in ninja_commands.splitlines():
         argv=shlex.split(line)
@@ -43,8 +43,11 @@ def runtime_identity(runtime,ldc,emsdk):
         paths.add(runtime/rel)
     # Imported D modules, generated configuration, archiver commands and all
     # Emscripten driver/configuration modules also affect the actual archives.
-    for base in (runtime/'ldc-src/runtime',runtime/'CMakeFiles',emsdk/'upstream/emscripten/tools',emsdk/'upstream/emscripten/cmake',emsdk/'upstream/emscripten/src/settings'):
+    for base in (runtime/'ldc-src/runtime',runtime/'CMakeFiles',emsdk/'upstream/emscripten/tools',emsdk/'upstream/emscripten/cmake',emsdk/'upstream/emscripten/src'):
         paths.update(q for q in base.rglob('*') if q.is_file() and '__pycache__' not in q.parts and q.suffix in ('.d','.h','.c','.cpp','.cmake','.make','.ninja','.txt','.json','.py','.js'))
+    for q in (ldc.with_name('ldc2.conf'),ldc.parent.parent/'etc/ldc2.conf'):
+        if q.is_file():paths.add(q)
+    paths.update((emsdk/'upstream/emscripten').glob('*.py'))
     for rel in ('upstream/emscripten/emcc','upstream/emscripten/em++','upstream/emscripten/emar','upstream/emscripten/emranlib','upstream/bin/clang','upstream/bin/clang++','upstream/bin/llvm-ar','upstream/bin/wasm-ld','.emscripten'):
         paths.add(emsdk/rel)
     for q in (runtime/'build.ninja',runtime/'rules.ninja',runtime/'CMakeFiles/rules.ninja'):
