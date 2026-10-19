@@ -43,7 +43,7 @@
 +      const float direction[3]={ray.dir_xyz.x,ray.dir_xyz.y,ray.dir_xyz.z};
 +      size_t mask=0;
 +      for(int k=0;k<N;++k) {
-+        double near=decode(ray.tnear[k]), far=decode(ray.tfar[k]);
++        double tNear=decode(ray.tnear[k]), tFar=decode(ray.tfar[k]);
 +        bool alive=true;
 +        for(unsigned axis=0;axis<3 && alive;++axis) {
 +          const double o=decode(origin[axis]), d=decode(direction[axis]);
@@ -53,13 +53,13 @@
 +          double l=std::nextafter(x-o,d>0 ? -INFINITY : INFINITY);
 +          double h=std::nextafter(y-o,d>0 ? INFINITY : -INFINITY);
 +          l=std::nextafter(l/d,-INFINITY); h=std::nextafter(h/d,INFINITY);
-+          near=std::max(near,l); far=std::min(far,h);
-+          if(near>far) alive=false;
++          tNear=std::max(tNear,l); tFar=std::min(tFar,h);
++          if(tNear>tFar) alive=false;
 +        }
 +        if(alive) mask|=size_t(1)<<k;
 +        // A subnormal conversion may flush to zero, still a lower enclosure.
-+        float stored=float(near);
-+        if(decode(stored)>near) stored=std::nextafter(stored,-INFINITY);
++        float stored=float(tNear);
++        if(decode(stored)>tNear) stored=std::nextafter(stored,-INFINITY);
 +        dist[k]=stored;
 +      }
 +#else
