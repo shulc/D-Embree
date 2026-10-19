@@ -1,0 +1,10 @@
+{
+  "kernels/bvh/bvh_intersector1_bvh4.cpp": {
+    "before": "f3eb93934cfcaf8012385083d2903ca24d1cf9f4da4a2dd465f44a072a2c9f94",
+    "after": "c75387db492bb4e9a04ce44eba10455e287dc839403baa1f60744bb342dd4e70"
+  },
+  "kernels/bvh/node_intersector1.h": {
+    "before": "68178b37714a856aa1540c3ca129ab229b63b2836215035edb51341b61419f88",
+    "after": "b2a6e27a4756ce9fe4f642501e244a3c94fb02adcb0715a158521c1bb7fe74ab"
+  }
+}

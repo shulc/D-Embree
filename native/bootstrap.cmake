@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.24)
+get_filename_component(package_root "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
+find_program(python NAMES python3 python REQUIRED)
+if(NOT DEFINED DEMBREE_FAULTS)
+  set(DEMBREE_FAULTS OFF)
+endif()
+execute_process(COMMAND "${python}" "${package_root}/tools/bootstrap.py" --faults "${DEMBREE_FAULTS}" COMMAND_ERROR_IS_FATAL ANY)

@@ -1,0 +1,104 @@
+{
+  "name": "d-embree",
+  "description": "Owned D ray acceleration with a narrow C ABI and pinned Embree USER geometry",
+  "license": "MIT",
+  "authors": [
+    "Alexander Shagarov"
+  ],
+  "sourcePaths": [
+    "source"
+  ],
+  "importPaths": [
+    "source"
+  ],
+  "configurations": [
+    {
+      "name": "library",
+      "targetType": "staticLibrary",
+      "preBuildCommands": [
+        "cmake -P \"$PACKAGE_DIR/native/bootstrap.cmake\""
+      ],
+      "libs": [
+        "dembree"
+      ],
+      "lflags-linux": [
+        "-L$PACKAGE_DIR/.build/native-runtime/lib",
+        "-rpath=$PACKAGE_DIR/.build/native-runtime/lib",
+        "-rpath=$$ORIGIN"
+      ],
+      "lflags-osx": [
+        "-L$PACKAGE_DIR/.build/native-runtime/lib",
+        "-rpath",
+        "@executable_path",
+        "-rpath",
+        "$PACKAGE_DIR/.build/native-runtime/lib"
+      ],
+      "lflags-windows": [
+        "/LIBPATH:$PACKAGE_DIR/.build/native-runtime/lib"
+      ]
+    },
+    {
+      "name": "tests",
+      "targetType": "staticLibrary",
+      "preBuildCommands": [
+        "cmake -DDEMBREE_FAULTS=ON -P \"$PACKAGE_DIR/native/bootstrap.cmake\""
+      ],
+      "libs": [
+        "dembree"
+      ],
+      "lflags-linux": [
+        "-L$PACKAGE_DIR/.build/test-runtime/lib",
+        "-rpath=$PACKAGE_DIR/.build/test-runtime/lib",
+        "-rpath=$$ORIGIN"
+      ],
+      "lflags-osx": [
+        "-L$PACKAGE_DIR/.build/test-runtime/lib",
+        "-rpath",
+        "@executable_path",
+        "-rpath",
+        "$PACKAGE_DIR/.build/test-runtime/lib"
+      ],
+      "lflags-windows": [
+        "/LIBPATH:$PACKAGE_DIR/.build/test-runtime/lib"
+      ],
+      "sourcePaths": [
+        "source",
+        "tests/source"
+      ],
+      "versions": [
+        "EmbreeTestFaults"
+      ]
+    },
+    {
+      "name": "triangle_refit",
+      "targetType": "executable",
+      "preBuildCommands": [
+        "cmake -P \"$PACKAGE_DIR/native/bootstrap.cmake\""
+      ],
+      "libs": [
+        "dembree"
+      ],
+      "lflags-linux": [
+        "-L$PACKAGE_DIR/.build/native-runtime/lib",
+        "-rpath=$PACKAGE_DIR/.build/native-runtime/lib",
+        "-rpath=$$ORIGIN"
+      ],
+      "lflags-osx": [
+        "-L$PACKAGE_DIR/.build/native-runtime/lib",
+        "-rpath",
+        "@executable_path",
+        "-rpath",
+        "$PACKAGE_DIR/.build/native-runtime/lib"
+      ],
+      "lflags-windows": [
+        "/LIBPATH:$PACKAGE_DIR/.build/native-runtime/lib"
+      ],
+      "mainSourceFile": "examples/triangle_refit.d",
+      "targetName": "triangle_refit"
+    },
+    {
+      "name": "web",
+      "targetType": "staticLibrary"
+    }
+  ]
+}

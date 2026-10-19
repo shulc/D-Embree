@@ -1,0 +1,76 @@
+--- a/kernels/bvh/bvh_intersector1_bvh4.cpp
++++ b/kernels/bvh/bvh_intersector1_bvh4.cpp
+@@ -42,7 +42,11 @@
+     IF_ENABLED_SUBDIV(DEFINE_INTERSECTOR1(BVH4SubdivPatch1Intersector1,BVHNIntersector1<4 COMMA BVH_AN1 COMMA true COMMA SubdivPatch1Intersector1>));
+     IF_ENABLED_SUBDIV(DEFINE_INTERSECTOR1(BVH4SubdivPatch1MBIntersector1,BVHNIntersector1<4 COMMA BVH_AN2_AN4D COMMA true COMMA SubdivPatch1MBIntersector1>));
+     
++#if defined(DEMBREE_CLOSED_INTERVAL)
++    IF_ENABLED_USER(DEFINE_INTERSECTOR1(BVH4VirtualIntersector1,BVHNIntersector1<4 COMMA BVH_AN1 COMMA true COMMA ArrayIntersector1<ObjectIntersector1<false>> >));
++#else
+     IF_ENABLED_USER(DEFINE_INTERSECTOR1(BVH4VirtualIntersector1,BVHNIntersector1<4 COMMA BVH_AN1 COMMA false COMMA ArrayIntersector1<ObjectIntersector1<false>> >));
++#endif
+     IF_ENABLED_USER(DEFINE_INTERSECTOR1(BVH4VirtualMBIntersector1,BVHNIntersector1<4 COMMA BVH_AN2_AN4D COMMA false COMMA ArrayIntersector1<ObjectIntersector1<true>> >));
+ 
+     IF_ENABLED_INSTANCE(DEFINE_INTERSECTOR1(BVH4InstanceIntersector1,BVHNIntersector1<4 COMMA BVH_AN1 COMMA false COMMA ArrayIntersector1<InstanceIntersector1> >));
+--- a/kernels/bvh/node_intersector1.h
++++ b/kernels/bvh/node_intersector1.h
+@@ -1,5 +1,10 @@
+ // Copyright 2009-2021 Intel Corporation
+ // SPDX-License-Identifier: Apache-2.0
++// Modified for the macro-scoped scalar closed-interval USER traversal.
++#if defined(DEMBREE_CLOSED_INTERVAL)
++#include <cmath>
++#include <cstring>
++#endif
+ 
+ #pragma once
+ 
+@@ -539,6 +544,40 @@
+     template<int N>
+       __forceinline size_t intersectNodeRobust(const typename BVHN<N>::AABBNode* node, const TravRay<N,true>& ray, vfloat<N>& dist)
+     {
++#if defined(DEMBREE_CLOSED_INTERVAL)
++      // Decode raw f32 operands so DAZ cannot erase a subnormal ray component.
++      auto decode=[](float f)->double {
++        unsigned u; std::memcpy(&u,&f,4); const int e=(u>>23)&255;
++        if(e==255) return u>>31 ? -INFINITY : INFINITY;
++        const double a=std::ldexp(double((u&0x7fffff)|(e?0x800000:0)),e?e-150:-149);
++        return u>>31 ? -a : a;
++      };
++      const float* low[3]={(const float*)&node->lower_x,(const float*)&node->lower_y,(const float*)&node->lower_z};
++      const float* high[3]={(const float*)&node->upper_x,(const float*)&node->upper_y,(const float*)&node->upper_z};
++      const float origin[3]={ray.org_xyz.x,ray.org_xyz.y,ray.org_xyz.z};
++      const float direction[3]={ray.dir_xyz.x,ray.dir_xyz.y,ray.dir_xyz.z};
++      size_t mask=0;
++      for(int k=0;k<N;++k) {
++        double near=decode(ray.tnear[k]), far=decode(ray.tfar[k]);
++        bool alive=true;
++        for(unsigned axis=0;axis<3 && alive;++axis) {
++          const double o=decode(origin[axis]), d=decode(direction[axis]);
++          const double a=decode(low[axis][k]), b=decode(high[axis][k]);
++          if(d==0) { if(o<a || o>b) alive=false; continue; }
++          const double x=d>0 ? a : b, y=d>0 ? b : a;
++          double l=std::nextafter(x-o,d>0 ? -INFINITY : INFINITY);
++          double h=std::nextafter(y-o,d>0 ? INFINITY : -INFINITY);
++          l=std::nextafter(l/d,-INFINITY); h=std::nextafter(h/d,INFINITY);
++          near=std::max(near,l); far=std::min(far,h);
++          if(near>far) alive=false;
++        }
++        if(alive) mask|=size_t(1)<<k;
++        // A subnormal conversion may flush to zero, still a lower enclosure.
++        float stored=float(near);
++        if(decode(stored)>near) stored=std::nextafter(stored,-INFINITY);
++        dist[k]=stored;
++      }
++#else
+       const vfloat<N> tNearX = (vfloat<N>::load((float*)((const char*)&node->lower_x+ray.nearX)) - ray.org.x) * ray.rdir_near.x;
+       const vfloat<N> tNearY = (vfloat<N>::load((float*)((const char*)&node->lower_x+ray.nearY)) - ray.org.y) * ray.rdir_near.y;
+       const vfloat<N> tNearZ = (vfloat<N>::load((float*)((const char*)&node->lower_x+ray.nearZ)) - ray.org.z) * ray.rdir_near.z;
+@@ -550,6 +589,7 @@
+       const vbool<N> vmask = tNear <= tFar;
+       const size_t mask = movemask(vmask);
+       dist = tNear;
++#endif
+       return mask;
+     }
+ 

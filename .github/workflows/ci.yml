@@ -1,0 +1,39 @@
+name: build
+on: [push, pull_request]
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022, macos-13]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dlang-community/setup-dlang@v2
+        with:
+          compiler: ldc-latest
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+      - run: cmake -S . -B .build/review -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DDEMBREE_TEST_FAULTS=ON
+      - run: cmake --build .build/review --config Release --parallel 6
+      - run: ctest --test-dir .build/review -C Release --output-on-failure
+      - run: dub test --config=tests
+      - run: dub run --config=triangle_refit
+      - run: python tools/check_public_boundary.py --self-test
+  web:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 6.0.9
+      - run: emcmake cmake -S . -B .build/web -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DDEMBREE_TEST_FAULTS=ON
+      - run: cmake --build .build/web --parallel 6
+      - run: node .build/web/dembree_smoke.js
+      - run: node .build/web/dembree_exact.js
+      - run: python3 tools/export_web_archives.py .build/web .build/web-export
+      - uses: dlang-community/setup-dlang@v2
+        with:
+          compiler: ldc-1.43.0
+      - run: python3 tools/build_web_proof.py --ldc "$(command -v ldc2)" --emsdk "$EMSDK" --build .build/web
+
