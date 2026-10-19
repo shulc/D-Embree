@@ -9,7 +9,9 @@ ldc=a.ldc.resolve(strict=True);builder=ldc.with_name('ldc-build-runtime');toolch
 runtime=(a.runtime_root or ROOT/'.build/web-runtime').resolve();dest=a.dest.resolve();dest.mkdir(parents=True,exist_ok=True)
 commands=[]
 def run(argv):
-    commands.append([str(x) for x in argv]);subprocess.run(commands[-1],check=True,cwd=ROOT)
+    commands.append([str(x) for x in argv])
+    env=dict(os.environ);env['PATH']=str(Path(shutil.which('cmake')).resolve().parent)+os.pathsep+env.get('PATH','')
+    subprocess.run(commands[-1],check=True,cwd=ROOT,env=env)
 if a.runtime_root:
     # Explicit reuse requires a receipt created from the actual rebuilt runtime.
     runtime_identity=authenticate_runtime(runtime,ldc,a.emsdk)

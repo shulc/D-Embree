@@ -25,7 +25,17 @@ class Provenance(unittest.TestCase):
                 good=native.ready(build,prefix,inputs)
                 self.assertEqual(native.validate(prefix),good,'NATIVE_CURRENT')
                 self.assertIn(str(archive/'embree.lib'),good['native_inputs'],'MSVC_STATIC_CLOSURE')
-                mutations={'source_root':'elsewhere','prefix':'elsewhere','build_root':str(build.parent),'fingerprint':'stale','compiler':{},'environment':{},'sources':{}}
+                with self.assertRaisesRegex(RuntimeError,'EMBREE_BUILD_ROOT_IDENTITY',msg='READY_ROOT'):native.ready(build.parent,prefix,inputs)
+                changed=dict(inputs,configuration='Debug')
+                with self.assertRaisesRegex(RuntimeError,'EMBREE_BUILD_FINGERPRINT',msg='READY_FRESH'):native.ready(build,prefix,changed)
+                bad=copy.deepcopy(good);bad['faults']=True;(prefix/'manifest.json').write_text(json.dumps(bad))
+                with self.assertRaisesRegex(RuntimeError,'EMBREE_BUILD_MODE_IDENTITY',msg='PRODUCTION_FAULTS'):native.validate(prefix)
+                (prefix/'manifest.json').write_text(json.dumps(good))
+                with patch.object(native,'effective_compilers',return_value={'different':'compiler'}):
+                    with self.assertRaisesRegex(RuntimeError,'EMBREE_BUILD_COMPILER_IDENTITY',msg='EFFECTIVE_COMPILER'):native.validate(prefix)
+                with patch.dict(os.environ,{'PATH':str(root/'.build/native-runtime/bin')+os.pathsep+os.environ.get('PATH','')}):
+                    self.assertEqual(native.input_key(False),inputs,'LOADER_PATH_NORMALIZATION')
+                mutations={'source_root':'elsewhere','prefix':'elsewhere','build_root':str(build.parent),'fingerprint':'stale','compiler':{},'environment':{},'sources':{},'native_inputs':{},'artifacts':{}}
                 for key,value in mutations.items():
                     bad=copy.deepcopy(good);bad[key]=value;(prefix/'manifest.json').write_text(json.dumps(bad))
                     with self.assertRaises((RuntimeError,OSError),msg='NATIVE_REFUSE_'+key):native.validate(prefix)
@@ -56,12 +66,21 @@ class Provenance(unittest.TestCase):
             ninja=str(ldc)+' -c -mtriple=wasm32-unknown-emscripten -mattr=+atomics,+bulk-memory,+simd128 a.d\n'+str(ldc)+' -lib objects/a.o'
             def output(argv,**kw):return ninja if argv[0]=='ninja' else 'fixture version'
             with patch.object(web.subprocess,'check_output',side_effect=output):
+                with self.assertRaisesRegex(RuntimeError,'DEMBREE_WEB_RUNTIME_FINGERPRINT',msg='WEB_REQUIRES_STAMP'):web.authenticate_runtime(runtime,ldc,sdk)
                 good=web.authenticate_runtime(runtime,ldc,sdk,accept=True)
                 self.assertEqual(web.authenticate_runtime(runtime,ldc,sdk),good,'WEB_AUTHENTICATED_REUSE')
                 for f in (cache,commands,sdk/'upstream/bin/clang',runtime/'lib/libphobos2-ldc.a',runtime/'objects/a.o',runtime/'ldc-src/runtime/a.d',runtime/'build.ninja'):
                     original=f.read_bytes();f.write_bytes(original+b' ')
                     with self.assertRaises((RuntimeError,ValueError),msg='WEB_REFUSE_'+f.name):web.authenticate_runtime(runtime,ldc,sdk)
                     f.write_bytes(original)
+                for key,value,marker in [('entries',[], 'DEMBREE_WEB_RUNTIME_COMMAND_POPULATION'),('toolchain','wrong','DEMBREE_WEB_RUNTIME_TOOLCHAIN')]:
+                    original=commands.read_text() if key=='entries' else cache.read_text()
+                    target=commands if key=='entries' else cache
+                    target.write_text(json.dumps(value) if key=='entries' else value)
+                    with self.assertRaisesRegex(RuntimeError,marker):web.authenticate_runtime(runtime,ldc,sdk)
+                    target.write_text(original)
+                with patch.object(web.subprocess,'check_output',return_value=''):
+                    with self.assertRaisesRegex(RuntimeError,'DEMBREE_WEB_RUNTIME_LANGUAGE_POPULATION'):web.authenticate_runtime(runtime,ldc,sdk)
                 with patch.object(web.subprocess,'check_output',return_value=ninja.replace('-mattr=+atomics,+bulk-memory,+simd128','')):
                     with self.assertRaisesRegex(RuntimeError,'DEMBREE_WEB_RUNTIME_D_FLAGS'):web.authenticate_runtime(runtime,ldc,sdk)
                 bad=copy.deepcopy(entries);bad[1]['arguments'].remove('-fexceptions');commands.write_text(json.dumps(bad))
