@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Synthetic provenance controls; real build/loader proofs run separately."""
-import copy,json,os,sys,tempfile,unittest,runpy
+import copy,json,os,sys,tempfile,unittest,runpy,shlex
 from pathlib import Path
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'tools'))
@@ -97,7 +97,7 @@ class Provenance(unittest.TestCase):
             for f in files:f.parent.mkdir(parents=True,exist_ok=True);f.write_text('fixture')
             cache=runtime/'CMakeCache.txt';cache.write_text('TARGET_SYSTEM:STRING=Emscripten;UNIX\nCMAKE_TOOLCHAIN_FILE:FILEPATH='+str(sdk/'upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake'))
             commands=runtime/'compile_commands.json';entries=[{'arguments':[str(sdk/'upstream/emscripten/emcc'),'-pthread','-c',str(runtime/'ldc-src/runtime/a.c')],'file':str(runtime/'ldc-src/runtime/a.c')}];entries.append({'arguments':[str(sdk/'upstream/emscripten/em++'),'-pthread','-fexceptions','-c',str(runtime/'ldc-src/runtime/a.cpp')],'file':str(runtime/'ldc-src/runtime/a.cpp')});commands.write_text(json.dumps(entries))
-            ninja=str(ldc)+' -c -mtriple=wasm32-unknown-emscripten -mattr=+atomics,+bulk-memory,+simd128 a.d\n'+str(ldc)+' -lib objects/a.o'
+            ninja=shlex.quote(str(ldc))+' -c -mtriple=wasm32-unknown-emscripten -mattr=+atomics,+bulk-memory,+simd128 a.d\n'+shlex.quote(str(ldc))+' -lib objects/a.o'
             def output(argv,**kw):return (ninja if argv[-1]=='commands' else '    '+str(sdk/'cache/include/stdlib.h')) if argv[0]=='ninja' else 'fixture version'
             with patch.object(web.subprocess,'check_output',side_effect=output):
                 with self.assertRaisesRegex(RuntimeError,'DEMBREE_WEB_RUNTIME_FINGERPRINT',msg='WEB_REQUIRES_STAMP'):web.authenticate_runtime(runtime,ldc,sdk)
