@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 """Synthetic provenance controls; real build/loader proofs run separately."""
 import copy,json,os,sys,tempfile,unittest,runpy,shlex
-from pathlib import Path
+from pathlib import Path,PureWindowsPath
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'tools'))
 import build_manifest as native
 import web_runtime_manifest as web
+
+class WindowsRelativePath(type(Path())):
+    """Keep host filesystem I/O; model Windows relative path serialization."""
+    def relative_to(self,*args,**kwargs):
+        return PureWindowsPath(super().relative_to(*args,**kwargs))
 
 class Provenance(unittest.TestCase):
     def test_native(self):
@@ -18,6 +23,10 @@ class Provenance(unittest.TestCase):
             with patch.object(native,'ROOT',root):
                 inputs=native.input_key(False);build,prefix=native.owned_roots(False,inputs['fingerprint']);build.mkdir(parents=True);prefix.mkdir(parents=True)
                 (prefix/'lib').mkdir();(prefix/'lib/dembree.dll').write_text('runtime')
+                notices=('LICENSE','THIRD_PARTY_LICENSES.md','LICENSE.txt','third-party-programs.txt')
+                for name in notices:
+                    target=prefix/'share/licenses/dembree'/name
+                    target.parent.mkdir(parents=True,exist_ok=True);target.write_text(name)
                 upstream=build/'_deps/dembree_upstream-src/include/embree4';upstream.mkdir(parents=True)
                 for i in range(9):(upstream/(str(i)+'.h')).write_text(str(i))
                 archive=build/'_deps/dembree_upstream-build';archive.mkdir();(archive/'embree.lib').write_text('static');(archive/'EMBREE_UPPER.LIB').write_text('static')
@@ -25,6 +34,24 @@ class Provenance(unittest.TestCase):
                 (build/'CMakeCache.txt').write_text('CMAKE_CXX_COMPILER:FILEPATH='+str(compiler)+'\n')
                 (build/'compile_commands.json').write_text('[]')
                 good=native.ready(build,prefix,inputs)
+                expected_artifacts={'lib/dembree.dll',*('share/licenses/dembree/'+name for name in notices)}
+                self.assertEqual(set(good['artifacts']),expected_artifacts,'NATIVE_ARTIFACT_POPULATION')
+                self.assertEqual(str(WindowsRelativePath(prefix/'share/licenses/dembree/LICENSE').relative_to(prefix)),
+                                 'share\\licenses\\dembree\\LICENSE','WINDOWS_PATH_CONSTRUCTION')
+                with patch.object(native,'Path',WindowsRelativePath):
+                    windows=native.ready(build,prefix,inputs)
+                self.assertEqual(windows['artifacts'],good['artifacts'],'NATIVE_ARTIFACT_PORTABLE_PATHS')
+                dest=root/'staged'
+                with patch.object(sys,'argv',['stage_runtime.py','--prefix',str(prefix),'--dest',str(dest)]):
+                    runpy.run_path(str(Path(__file__).resolve().parents[2]/'tools/stage_runtime.py'),run_name='__main__')
+                staged=json.loads((dest/'dembree-runtime.json').read_text())
+                expected_staged={str(Path('dembree.dll')),*[str(Path('licenses/dembree')/name) for name in notices]}
+                self.assertEqual(set(staged['artifacts']),expected_staged,'STAGED_NOTICE_POPULATION')
+                for name,digest in staged['artifacts'].items():
+                    self.assertEqual(native.sha(dest/name),digest,'STAGED_ARTIFACT_BYTES')
+                self.assertEqual(staged['runtime'],'dembree.dll','STAGED_RUNTIME_NAME')
+                self.assertEqual(staged['fingerprint'],inputs['fingerprint'],'STAGED_FINGERPRINT')
+                self.assertIs(staged['faults'],False,'STAGED_PRODUCTION_MODE')
                 self.assertEqual(native.validate(prefix),good,'NATIVE_CURRENT')
                 self.assertIn('source/fixture.d',good['sources'],'D_SOURCE_INPUT')
                 compiler.write_text('changed')

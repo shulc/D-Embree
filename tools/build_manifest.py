@@ -57,7 +57,7 @@ def ready(build,prefix,inputs):
     paths += [upstream/name for name in pre]
     paths += list((build/'_deps').rglob('archive.tar'))
     if len(paths)<10:raise RuntimeError('DEMBREE_BUILD_INPUT_POPULATION')
-    artifacts={str(p.relative_to(prefix)):sha(p) for p in sorted(prefix.rglob('*')) if p.is_file() and p.name!='manifest.json'}
+    artifacts={p.relative_to(prefix).as_posix():sha(p) for p in sorted(prefix.rglob('*')) if p.is_file() and p.name!='manifest.json'}
     if not artifacts:raise RuntimeError('DEMBREE_RUNTIME_POPULATION')
     result=dict(inputs,source_root=str(ROOT),build_root=str(build),prefix=str(prefix),native_inputs={str(p):sha(p) for p in sorted(paths)},effective_compilers=effective_compilers(build),artifacts=artifacts)
     (prefix/'manifest.json').write_text(json.dumps(result,indent=2)+'\n');return result
