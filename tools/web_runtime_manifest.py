@@ -23,6 +23,11 @@ def runtime_identity(runtime,ldc,emsdk):
         if source.suffix in ('.cpp','.cc','.cxx') and '-fexceptions' not in argv:raise RuntimeError('DEMBREE_WEB_RUNTIME_CXX_FLAGS')
         ccount+=1
     ninja_commands=subprocess.check_output(['ninja','-C',str(runtime),'-t','commands'],text=True)
+    dependencies=subprocess.check_output(['ninja','-C',str(runtime),'-t','deps'],text=True)
+    for line in dependencies.splitlines():
+        if line.startswith('    ') and line.strip():paths.add((runtime/line.strip()).resolve(strict=True))
+    paths.update(runtime.rglob('*.d'))
+    if os.environ.get('EM_CONFIG'):paths.add(Path(os.environ['EM_CONFIG']).resolve(strict=True))
     for line in ninja_commands.splitlines():
         argv=shlex.split(line)
         if str(ldc) not in argv:continue
@@ -46,7 +51,7 @@ def runtime_identity(runtime,ldc,emsdk):
         if q.is_file():paths.add(q)
     files={str(q):sha(q) for q in sorted(paths)}
     versions={str(q):subprocess.check_output([str(q),'--version'],text=True,stderr=subprocess.STDOUT) for q in (ldc,emsdk/'upstream/emscripten/emcc',emsdk/'upstream/bin/clang')}
-    body={'root':str(runtime),'files':files,'versions':versions,'environment':{k:os.environ.get(k) for k in ('EMSDK','EM_CONFIG','EM_CACHE','EMCC_CFLAGS','CFLAGS','CXXFLAGS','LDFLAGS')},'languages':{'D':dcount,'C/C++':ccount},'ninja_commands':ninja_commands}
+    body={'root':str(runtime),'files':files,'versions':versions,'environment':{k:os.environ.get(k) for k in ('EMSDK','EM_CONFIG','EM_CACHE','EMCC_CFLAGS','CFLAGS','CXXFLAGS','LDFLAGS')},'languages':{'D':dcount,'C/C++':ccount},'ninja_commands':ninja_commands,'ninja_dependencies':dependencies}
     return {'fingerprint':hashlib.sha256(json.dumps(body,sort_keys=True).encode()).hexdigest(),'body':body}
 
 def authenticate_runtime(runtime,ldc,emsdk,accept=False):

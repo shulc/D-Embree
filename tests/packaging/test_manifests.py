@@ -35,6 +35,10 @@ class Provenance(unittest.TestCase):
                     with self.assertRaisesRegex(RuntimeError,'EMBREE_BUILD_COMPILER_IDENTITY',msg='EFFECTIVE_COMPILER'):native.validate(prefix)
                 with patch.dict(os.environ,{'PATH':str(root/'.build/native-runtime/bin')+os.pathsep+os.environ.get('PATH','')}):
                     self.assertEqual(native.input_key(False),inputs,'LOADER_PATH_NORMALIZATION')
+                copied=root/'.build/copied-runtime'
+                import shutil
+                shutil.copytree(prefix,copied);m=copy.deepcopy(good);m['prefix']=str(copied);(copied/'manifest.json').write_text(json.dumps(m))
+                with self.assertRaisesRegex(RuntimeError,'EMBREE_BUILD_ROOT_IDENTITY',msg='CURRENT_PREFIX'):native.validate(copied)
                 mutations={'source_root':'elsewhere','prefix':'elsewhere','build_root':str(build.parent),'fingerprint':'stale','compiler':{},'environment':{},'sources':{},'native_inputs':{},'artifacts':{}}
                 for key,value in mutations.items():
                     bad=copy.deepcopy(good);bad[key]=value;(prefix/'manifest.json').write_text(json.dumps(bad))
@@ -64,7 +68,7 @@ class Provenance(unittest.TestCase):
             cache=runtime/'CMakeCache.txt';cache.write_text('TARGET_SYSTEM:STRING=Emscripten;UNIX\nCMAKE_TOOLCHAIN_FILE:FILEPATH='+str(sdk/'upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake'))
             commands=runtime/'compile_commands.json';entries=[{'arguments':[str(sdk/'upstream/emscripten/emcc'),'-pthread','-c',str(runtime/'ldc-src/runtime/a.c')],'file':str(runtime/'ldc-src/runtime/a.c')}];entries.append({'arguments':[str(sdk/'upstream/emscripten/em++'),'-pthread','-fexceptions','-c',str(runtime/'ldc-src/runtime/a.cpp')],'file':str(runtime/'ldc-src/runtime/a.cpp')});commands.write_text(json.dumps(entries))
             ninja=str(ldc)+' -c -mtriple=wasm32-unknown-emscripten -mattr=+atomics,+bulk-memory,+simd128 a.d\n'+str(ldc)+' -lib objects/a.o'
-            def output(argv,**kw):return ninja if argv[0]=='ninja' else 'fixture version'
+            def output(argv,**kw):return (ninja if argv[-1]=='commands' else '') if argv[0]=='ninja' else 'fixture version'
             with patch.object(web.subprocess,'check_output',side_effect=output):
                 with self.assertRaisesRegex(RuntimeError,'DEMBREE_WEB_RUNTIME_FINGERPRINT',msg='WEB_REQUIRES_STAMP'):web.authenticate_runtime(runtime,ldc,sdk)
                 good=web.authenticate_runtime(runtime,ldc,sdk,accept=True)
@@ -87,4 +91,8 @@ class Provenance(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError,'DEMBREE_WEB_RUNTIME_CXX_FLAGS'):web.authenticate_runtime(runtime,ldc,sdk)
                 bad=copy.deepcopy(entries);bad[0]['arguments'].remove('-pthread');commands.write_text(json.dumps(bad))
                 with self.assertRaisesRegex(RuntimeError,'DEMBREE_WEB_RUNTIME_C_FLAGS'):web.authenticate_runtime(runtime,ldc,sdk)
+                bad=copy.deepcopy(entries);bad[0]['arguments'][0]=str(ldc);commands.write_text(json.dumps(bad))
+                with self.assertRaisesRegex(RuntimeError,'DEMBREE_WEB_RUNTIME_C_FLAGS'):web.authenticate_runtime(runtime,ldc,sdk)
+                bad=copy.deepcopy(entries);bad[0]['file']=str(ldc);commands.write_text(json.dumps(bad))
+                with self.assertRaisesRegex(RuntimeError,'DEMBREE_WEB_RUNTIME_SOURCE_ROOT'):web.authenticate_runtime(runtime,ldc,sdk)
 if __name__=='__main__':unittest.main()
