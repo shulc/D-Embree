@@ -90,6 +90,8 @@ if(BUILD_TESTING)
   # This also detects the collision on hosts without the Windows headers.
   add_library(dembree_windows_macros OBJECT EXCLUDE_FROM_ALL
     "${dembree_upstream_SOURCE_DIR}/kernels/bvh/bvh_intersector1_bvh4.cpp")
+  get_property(embree_compile_flags TARGET embree PROPERTY COMPILE_FLAGS)
+  set_property(TARGET dembree_windows_macros PROPERTY COMPILE_FLAGS "${embree_compile_flags}")
   target_include_directories(dembree_windows_macros PRIVATE
     "$<TARGET_PROPERTY:embree,INCLUDE_DIRECTORIES>")
   target_compile_options(dembree_windows_macros PRIVATE
