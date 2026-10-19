@@ -77,9 +77,10 @@ class Provenance(unittest.TestCase):
     def test_web(self):
         with tempfile.TemporaryDirectory() as t:
             root=Path(t);runtime=root/'runtime';sdk=root/'sdk';ldc=root/'bin/ldc2'
-            files=[ldc,ldc.with_name('ldc-build-runtime')]
-            files += [sdk/rel for rel in ('upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake','upstream/emscripten/emcc','upstream/emscripten/em++','upstream/emscripten/emar','upstream/emscripten/emranlib','upstream/bin/clang','upstream/bin/clang++','upstream/bin/llvm-ar','upstream/bin/wasm-ld','.emscripten','cache/include/stdlib.h')]
+            files=[ldc,ldc.with_name('ldc-build-runtime'),ldc.parent.parent/'etc/ldc2.conf']
+            files += [sdk/rel for rel in ('upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake','upstream/emscripten/emcc','upstream/emscripten/em++','upstream/emscripten/emar','upstream/emscripten/emranlib','upstream/bin/clang','upstream/bin/clang++','upstream/bin/llvm-ar','upstream/bin/wasm-ld','.emscripten','cache/include/stdlib.h','upstream/emscripten/emcc.py','upstream/emscripten/src/settings.js')]
             files += [runtime/rel for rel in ('ldc-src.zip','ldc-src/runtime/CMakeLists.txt','ldc-src/runtime/a.d','ldc-src/runtime/a.c','ldc-src/runtime/a.cpp','lib/libphobos2-ldc.a','lib/libdruntime-ldc.a','objects/a.o','build.ninja','generated.d')]
+            (runtime/'directory.d').mkdir(parents=True)
             for f in files:f.parent.mkdir(parents=True,exist_ok=True);f.write_text('fixture')
             cache=runtime/'CMakeCache.txt';cache.write_text('TARGET_SYSTEM:STRING=Emscripten;UNIX\nCMAKE_TOOLCHAIN_FILE:FILEPATH='+str(sdk/'upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake'))
             commands=runtime/'compile_commands.json';entries=[{'arguments':[str(sdk/'upstream/emscripten/emcc'),'-pthread','-c',str(runtime/'ldc-src/runtime/a.c')],'file':str(runtime/'ldc-src/runtime/a.c')}];entries.append({'arguments':[str(sdk/'upstream/emscripten/em++'),'-pthread','-fexceptions','-c',str(runtime/'ldc-src/runtime/a.cpp')],'file':str(runtime/'ldc-src/runtime/a.cpp')});commands.write_text(json.dumps(entries))
@@ -89,7 +90,7 @@ class Provenance(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError,'DEMBREE_WEB_RUNTIME_FINGERPRINT',msg='WEB_REQUIRES_STAMP'):web.authenticate_runtime(runtime,ldc,sdk)
                 good=web.authenticate_runtime(runtime,ldc,sdk,accept=True)
                 self.assertEqual(web.authenticate_runtime(runtime,ldc,sdk),good,'WEB_AUTHENTICATED_REUSE')
-                for f in (cache,commands,sdk/'upstream/bin/clang',runtime/'lib/libphobos2-ldc.a',runtime/'objects/a.o',runtime/'ldc-src/runtime/a.d',runtime/'build.ninja',runtime/'generated.d',sdk/'cache/include/stdlib.h'):
+                for f in (cache,commands,sdk/'upstream/bin/clang',runtime/'lib/libphobos2-ldc.a',runtime/'objects/a.o',runtime/'ldc-src/runtime/a.d',runtime/'build.ninja',runtime/'generated.d',sdk/'cache/include/stdlib.h',ldc.parent.parent/'etc/ldc2.conf',sdk/'upstream/emscripten/emcc.py',sdk/'upstream/emscripten/src/settings.js'):
                     original=f.read_bytes();f.write_bytes(original+b' ')
                     with self.assertRaises((RuntimeError,ValueError),msg='WEB_REFUSE_'+f.name):web.authenticate_runtime(runtime,ldc,sdk)
                     f.write_bytes(original)
