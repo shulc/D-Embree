@@ -19,13 +19,9 @@ def runtime_identity(runtime,ldc,emsdk):
         source=Path(entry['file']).resolve(strict=True)
         if not source.is_relative_to(runtime/'ldc-src'):raise RuntimeError('DEMBREE_WEB_RUNTIME_SOURCE_ROOT')
         paths.add(source)
-        if source.suffix=='.d':
-            if compiler!=ldc or not all(t in argv for t in ('-mtriple=wasm32-unknown-emscripten','-mattr=+atomics,+bulk-memory,+simd128')):raise RuntimeError('DEMBREE_WEB_RUNTIME_D_FLAGS')
-            dcount+=1
-        else:
-            if not compiler.is_relative_to(emsdk/'upstream/emscripten') or '-pthread' not in argv:raise RuntimeError('DEMBREE_WEB_RUNTIME_C_FLAGS')
-            if source.suffix in ('.cpp','.cc','.cxx') and '-fexceptions' not in argv:raise RuntimeError('DEMBREE_WEB_RUNTIME_CXX_FLAGS')
-            ccount+=1
+        if not compiler.is_relative_to(emsdk/'upstream/emscripten') or '-pthread' not in argv:raise RuntimeError('DEMBREE_WEB_RUNTIME_C_FLAGS')
+        if source.suffix in ('.cpp','.cc','.cxx') and '-fexceptions' not in argv:raise RuntimeError('DEMBREE_WEB_RUNTIME_CXX_FLAGS')
+        ccount+=1
     ninja_commands=subprocess.check_output(['ninja','-C',str(runtime),'-t','commands'],text=True)
     for line in ninja_commands.splitlines():
         argv=shlex.split(line)

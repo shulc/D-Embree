@@ -49,10 +49,10 @@ class Provenance(unittest.TestCase):
             root=Path(t);runtime=root/'runtime';sdk=root/'sdk';ldc=root/'bin/ldc2'
             files=[ldc,ldc.with_name('ldc-build-runtime')]
             files += [sdk/rel for rel in ('upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake','upstream/emscripten/emcc','upstream/emscripten/em++','upstream/emscripten/emar','upstream/emscripten/emranlib','upstream/bin/clang','upstream/bin/clang++','upstream/bin/llvm-ar','upstream/bin/wasm-ld','.emscripten')]
-            files += [runtime/rel for rel in ('ldc-src.zip','ldc-src/runtime/CMakeLists.txt','ldc-src/runtime/a.d','ldc-src/runtime/a.c','lib/libphobos2-ldc.a','lib/libdruntime-ldc.a','objects/a.o','build.ninja')]
+            files += [runtime/rel for rel in ('ldc-src.zip','ldc-src/runtime/CMakeLists.txt','ldc-src/runtime/a.d','ldc-src/runtime/a.c','ldc-src/runtime/a.cpp','lib/libphobos2-ldc.a','lib/libdruntime-ldc.a','objects/a.o','build.ninja')]
             for f in files:f.parent.mkdir(parents=True,exist_ok=True);f.write_text('fixture')
             cache=runtime/'CMakeCache.txt';cache.write_text('TARGET_SYSTEM:STRING=Emscripten;UNIX\nCMAKE_TOOLCHAIN_FILE:FILEPATH='+str(sdk/'upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake'))
-            commands=runtime/'compile_commands.json';entries=[{'arguments':[str(sdk/'upstream/emscripten/emcc'),'-pthread','-c',str(runtime/'ldc-src/runtime/a.c')],'file':str(runtime/'ldc-src/runtime/a.c')}];commands.write_text(json.dumps(entries))
+            commands=runtime/'compile_commands.json';entries=[{'arguments':[str(sdk/'upstream/emscripten/emcc'),'-pthread','-c',str(runtime/'ldc-src/runtime/a.c')],'file':str(runtime/'ldc-src/runtime/a.c')}];entries.append({'arguments':[str(sdk/'upstream/emscripten/em++'),'-pthread','-fexceptions','-c',str(runtime/'ldc-src/runtime/a.cpp')],'file':str(runtime/'ldc-src/runtime/a.cpp')});commands.write_text(json.dumps(entries))
             ninja=str(ldc)+' -c -mtriple=wasm32-unknown-emscripten -mattr=+atomics,+bulk-memory,+simd128 a.d\n'+str(ldc)+' -lib objects/a.o'
             def output(argv,**kw):return ninja if argv[0]=='ninja' else 'fixture version'
             with patch.object(web.subprocess,'check_output',side_effect=output):
@@ -64,6 +64,8 @@ class Provenance(unittest.TestCase):
                     f.write_bytes(original)
                 with patch.object(web.subprocess,'check_output',return_value=ninja.replace('-mattr=+atomics,+bulk-memory,+simd128','')):
                     with self.assertRaisesRegex(RuntimeError,'DEMBREE_WEB_RUNTIME_D_FLAGS'):web.authenticate_runtime(runtime,ldc,sdk)
+                bad=copy.deepcopy(entries);bad[1]['arguments'].remove('-fexceptions');commands.write_text(json.dumps(bad))
+                with self.assertRaisesRegex(RuntimeError,'DEMBREE_WEB_RUNTIME_CXX_FLAGS'):web.authenticate_runtime(runtime,ldc,sdk)
                 bad=copy.deepcopy(entries);bad[0]['arguments'].remove('-pthread');commands.write_text(json.dumps(bad))
                 with self.assertRaisesRegex(RuntimeError,'DEMBREE_WEB_RUNTIME_C_FLAGS'):web.authenticate_runtime(runtime,ldc,sdk)
 if __name__=='__main__':unittest.main()
