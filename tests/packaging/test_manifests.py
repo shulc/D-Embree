@@ -20,7 +20,7 @@ class Provenance(unittest.TestCase):
                 (prefix/'lib').mkdir();(prefix/'lib/dembree.dll').write_text('runtime')
                 upstream=build/'_deps/dembree_upstream-src/include/embree4';upstream.mkdir(parents=True)
                 for i in range(9):(upstream/(str(i)+'.h')).write_text(str(i))
-                archive=build/'_deps/dembree_upstream-build';archive.mkdir();(archive/'embree.lib').write_text('static')
+                archive=build/'_deps/dembree_upstream-build';archive.mkdir();(archive/'embree.lib').write_text('static');(archive/'EMBREE.LIB').write_text('static')
                 compiler=root/'.build/compiler-bin';compiler.write_text('compiler')
                 (build/'CMakeCache.txt').write_text('CMAKE_CXX_COMPILER:FILEPATH='+str(compiler)+'\n')
                 (build/'compile_commands.json').write_text('[]')
@@ -37,6 +37,7 @@ class Provenance(unittest.TestCase):
                     with patch.dict(os.environ,{key:'changed'}):
                         with self.assertRaises(RuntimeError,msg='NATIVE_ENV_'+key):native.validate(prefix)
                 self.assertIn(str(archive/'embree.lib'),good['native_inputs'],'MSVC_STATIC_CLOSURE')
+                self.assertIn(str(archive/'EMBREE.LIB'),good['native_inputs'],'MSVC_STATIC_CASE')
                 with self.assertRaisesRegex(RuntimeError,'EMBREE_BUILD_ROOT_IDENTITY',msg='READY_ROOT'):native.ready(build.parent,prefix,inputs)
                 changed=dict(inputs,configuration='Debug')
                 with self.assertRaisesRegex(RuntimeError,'EMBREE_BUILD_FINGERPRINT',msg='READY_FRESH'):native.ready(build,prefix,changed)
@@ -109,7 +110,7 @@ class Provenance(unittest.TestCase):
                 def changed_version(argv,**kw):return output(argv,**kw) if argv[0]=='ninja' else 'changed version'
                 with patch.object(web.subprocess,'check_output',side_effect=changed_version):
                     with self.assertRaisesRegex(RuntimeError,'DEMBREE_WEB_RUNTIME_FINGERPRINT',msg='WEB_EFFECTIVE_VERSION'):web.authenticate_runtime(runtime,ldc,sdk)
-                for f in (cache,commands,sdk/'upstream/bin/clang',runtime/'lib/libphobos2-ldc.a',runtime/'objects/a.o',runtime/'ldc-src/runtime/a.d',runtime/'build.ninja',runtime/'generated.d',sdk/'cache/include/stdlib.h',ldc.parent.parent/'etc/ldc2.conf',sdk/'upstream/emscripten/emcc.py',sdk/'upstream/emscripten/src/settings.js'):
+                for f in (cache,commands,sdk/'upstream/bin/clang',runtime/'lib/libphobos2-ldc.a',runtime/'lib/libdruntime-ldc.a',runtime/'objects/a.o',runtime/'ldc-src/runtime/a.d',runtime/'build.ninja',runtime/'generated.d',sdk/'cache/include/stdlib.h',ldc.parent.parent/'etc/ldc2.conf',sdk/'upstream/emscripten/emcc.py',sdk/'upstream/emscripten/src/settings.js'):
                     original=f.read_bytes();f.write_bytes(original+b' ')
                     with self.assertRaises((RuntimeError,ValueError),msg='WEB_REFUSE_'+f.name):web.authenticate_runtime(runtime,ldc,sdk)
                     f.write_bytes(original)
