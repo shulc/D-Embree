@@ -72,8 +72,8 @@ original bound's raw bits. The result ABI is 20 bytes, alignment 4, t/u/v offset
 The caller's FP state is preserved. Native queries require both the C floating
 point environment and MXCSR rounding controls to select nearest. Unsupported
 rounding returns an error before traversal. Fast math and reassociation are
-unsupported. The kernel is scalar USER geometry (SSE2 on x86_64, upstream native ARM
-compatibility on arm64); packet,
+unsupported. The kernel is scalar USER geometry (SSE2 on x86_64, upstream native
+NEON four-lane compatibility traversal on arm64); packet,
 motion/instance, GPU and other ISA paths are outside this contract. Results
 retain a binary64 final refinement and are not exact-rational publications.
 
