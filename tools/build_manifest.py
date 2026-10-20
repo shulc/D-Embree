@@ -28,11 +28,11 @@ def environment_identity():
     result['PATH']=os.pathsep.join(p for p in os.environ.get('PATH','').split(os.pathsep) if p not in loader_paths)
     return result
 def input_key(faults):
-    body={'sources':source_inputs(),'compiler':compiler_identity(),'faults':bool(faults),'configuration':'Release','kernel':'USER-SSE2-exact-closed-interval-v1','tasking':'INTERNAL','generator':native_generator(),'environment':environment_identity(),'cmake':subprocess.check_output(['cmake','--version'],text=True)}
+    body={'sources':source_inputs(),'compiler':compiler_identity(),'faults':bool(faults),'configuration':'Release','kernel':'USER-scalar-exact-closed-interval-v1','tasking':'INTERNAL','generator':native_generator(),'environment':environment_identity(),'cmake':subprocess.check_output(['cmake','--version'],text=True)}
     body['fingerprint']=hashlib.sha256(json.dumps(body,sort_keys=True).encode()).hexdigest();return body
 def owned_roots(faults,fingerprint):
     mode='test' if faults else 'native'
-    return (ROOT/'.build'/(mode+'-build')/fingerprint).resolve(),(ROOT/'.build'/(mode+'-runtime')).resolve()
+    return (ROOT/'.build'/('t' if faults else 'n')/fingerprint).resolve(),(ROOT/'.build'/(mode+'-runtime')).resolve()
 def static_archives(build):
     return sorted(p for p in build.rglob('*') if p.is_file() and p.suffix.lower() in ('.a','.lib'))
 def effective_compilers(build):
@@ -44,18 +44,18 @@ def ready(build,prefix,inputs):
     build=Path(build).resolve(strict=True);prefix=Path(prefix).resolve(strict=True)
     if (build,prefix)!=owned_roots(inputs['faults'],inputs['fingerprint']):raise RuntimeError('EMBREE_BUILD_ROOT_IDENTITY')
     if inputs!=input_key(inputs['faults']):raise RuntimeError('EMBREE_BUILD_FINGERPRINT')
-    upstream=build/'_deps/dembree_upstream-src'
+    upstream=build/'s'
     pre=json.loads((ROOT/'native/patches/preimages.json').read_text())
     for name,entry in pre.items():
         if sha(upstream/name)!=entry['after']:raise RuntimeError('DEMBREE_PATCH_POSTIMAGE')
     paths=[build/'CMakeCache.txt',build/'compile_commands.json']
     paths += list((upstream/'include/embree4').rglob('*.h'))
-    paths += list((build/'_deps/dembree_upstream-build').rglob('*.h'))
-    archives=static_archives(build/'_deps/dembree_upstream-build')
+    paths += list((build/'b').rglob('*.h'))
+    archives=static_archives(build/'b')
     if not archives:raise RuntimeError('DEMBREE_STATIC_CLOSURE_POPULATION')
     paths += archives
     paths += [upstream/name for name in pre]
-    paths += list((build/'_deps').rglob('archive.tar'))
+    paths += list((build/'p').rglob('archive.tar'))
     if len(paths)<10:raise RuntimeError('DEMBREE_BUILD_INPUT_POPULATION')
     artifacts={p.relative_to(prefix).as_posix():sha(p) for p in sorted(prefix.rglob('*')) if p.is_file() and p.name!='manifest.json'}
     if not artifacts:raise RuntimeError('DEMBREE_RUNTIME_POPULATION')

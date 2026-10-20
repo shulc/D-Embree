@@ -30,10 +30,6 @@ endforeach()
 set(EMBREE_MAX_INSTANCE_LEVEL_COUNT 1 CACHE STRING "" FORCE)
 set(EMBREE_RAY_PACKETS OFF CACHE BOOL "" FORCE)
 set(EMBREE_IGNORE_INVALID_RAYS OFF CACHE BOOL "" FORCE)
-if(APPLE AND (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64" OR
-    (CMAKE_OSX_ARCHITECTURES AND NOT CMAKE_OSX_ARCHITECTURES STREQUAL "x86_64")))
-  message(FATAL_ERROR "Only Intel x86_64 Apple scalar SSE2 is supported")
-endif()
 if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
   set(EMBREE_MAX_ISA SSE2 CACHE STRING "" FORCE)
 endif()
@@ -42,6 +38,9 @@ if(EMSCRIPTEN)
 endif()
 # Both original archive and checked patch belong to this build root.
 FetchContent_Declare(dembree_upstream URL "${upstream_url}" URL_HASH "SHA256=${upstream_sha}"
+  SOURCE_DIR "${CMAKE_BINARY_DIR}/s"
+  BINARY_DIR "${CMAKE_BINARY_DIR}/b"
+  SUBBUILD_DIR "${CMAKE_BINARY_DIR}/p"
   DOWNLOAD_EXTRACT_TIMESTAMP TRUE
   PATCH_COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/apply_patch.py" <SOURCE_DIR>)
 FetchContent_MakeAvailable(dembree_upstream)

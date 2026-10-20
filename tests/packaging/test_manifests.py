@@ -21,15 +21,15 @@ class Provenance(unittest.TestCase):
             (root/'source/fixture.d').write_text('module fixture;')
             (root/'native/patches').mkdir();(root/'native/patches/preimages.json').write_text('{}')
             with patch.object(native,'ROOT',root):
-                inputs=native.input_key(False);build,prefix=native.owned_roots(False,inputs['fingerprint']);build.mkdir(parents=True);prefix.mkdir(parents=True)
+                inputs=native.input_key(False);build,prefix=native.owned_roots(False,inputs['fingerprint']);self.assertEqual(build,root/'.build/n'/inputs['fingerprint'],'COMPACT_FULL_FINGERPRINT');self.assertEqual(native.owned_roots(True,inputs['fingerprint'])[0],root/'.build/t'/inputs['fingerprint'],'COMPACT_TEST_MODE');build.mkdir(parents=True);prefix.mkdir(parents=True)
                 (prefix/'lib').mkdir();(prefix/'lib/dembree.dll').write_text('runtime')
                 notices=('LICENSE','THIRD_PARTY_LICENSES.md','LICENSE.txt','third-party-programs.txt')
                 for name in notices:
                     target=prefix/'share/licenses/dembree'/name
                     target.parent.mkdir(parents=True,exist_ok=True);target.write_text(name)
-                upstream=build/'_deps/dembree_upstream-src/include/embree4';upstream.mkdir(parents=True)
+                upstream=build/'s/include/embree4';upstream.mkdir(parents=True)
                 for i in range(9):(upstream/(str(i)+'.h')).write_text(str(i))
-                archive=build/'_deps/dembree_upstream-build';archive.mkdir();(archive/'embree.lib').write_text('static');(archive/'EMBREE_UPPER.LIB').write_text('static')
+                archive=build/'b';archive.mkdir();(archive/'embree.lib').write_text('static');(archive/'EMBREE_UPPER.LIB').write_text('static')
                 compiler=root/'.build/compiler-bin';compiler.write_text('compiler')
                 (build/'CMakeCache.txt').write_text('CMAKE_CXX_COMPILER:FILEPATH='+str(compiler)+'\n')
                 (build/'compile_commands.json').write_text('[]')

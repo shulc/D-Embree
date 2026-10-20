@@ -10,8 +10,7 @@ geometry. The MIT wrapper exposes six C entry points and a move-only
 Prerequisites: CMake 3.24+, Python 3.9+, Git, a C++17 compiler, and DMD 2.111+
 or LDC 1.41+. Windows additionally requires Ninja and an MSVC x64 developer
 environment (including the selected D compiler on PATH); bootstrap selects
-Ninja so actual compiler commands can be authenticated. Apple builds currently
-support Intel x86_64 only; arm64 and universal builds are refused. Initial configuration downloads the SHA256-authenticated original
+Ninja so actual compiler commands can be authenticated. Apple builds support separate native arm64 and x86_64 builds. Initial configuration downloads the SHA256-authenticated original
 upstream archive. No global Embree SDK is used.
 
 ```sh
@@ -31,7 +30,9 @@ before DUB starts; use it for tests/examples on Windows. On Unix, DUB's library 
 applications explicitly stage the runtime and notices beside their executables.
 Staging is required after each application build, even an up-to-date build. The
 library hooks write only under this package. Production and fault-enabled test
-builds have separate locked, fingerprinted caches. A test runtime cannot satisfy
+builds have separate locked, fingerprinted caches (`.build/n/<full-fingerprint>`
+and `.build/t/<full-fingerprint>`). Compact package-owned `s`, `b` and `p`
+subdirectories keep FetchContent paths within the Windows package-path budget. A test runtime cannot satisfy
 production staging. `tools/check_public_boundary.py` validates tracked sources
 and every local commit before publication.
 
@@ -71,7 +72,8 @@ original bound's raw bits. The result ABI is 20 bytes, alignment 4, t/u/v offset
 The caller's FP state is preserved. Native queries require both the C floating
 point environment and MXCSR rounding controls to select nearest. Unsupported
 rounding returns an error before traversal. Fast math and reassociation are
-unsupported. The qualified kernel is scalar SSE2 USER geometry; packet,
+unsupported. The kernel is scalar USER geometry (SSE2 on x86_64, upstream native ARM
+compatibility on arm64); packet,
 motion/instance, GPU and other ISA paths are outside this contract. Results
 retain a binary64 final refinement and are not exact-rational publications.
 
